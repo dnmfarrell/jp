@@ -1,0 +1,396 @@
+#!/bin/bash
+INDENT="  "
+AFTER=
+PRETTY=;[[ -t 1 ]] && PRETTY=1 # default to pretty for a tty
+TRACE=
+
+function error {
+  echo "Error: $1 at line $LINE, column $COL" >&2
+  exit 1
+}
+
+function trace {
+  [[ $TRACE ]] && echo "$1" >&2
+}
+
+function chomp {
+  C="${BUF:0:1}"
+  drop 1
+  if [[ $C == [$'\n\v\f\r'] ]];then
+    (( COL=1 ))
+    (( LINE++ ))
+  else
+    (( COL++ ))
+  fi
+  trace "chomp: $C"
+}
+
+function drop {
+  BUF="${BUF:$1}"
+}
+
+function drop_blanks {
+  trace "drop_blanks"
+  while :;do
+    if [[ "$C" == [[:blank:]] ]];then
+      chomp
+    else
+      break
+    fi
+  done
+}
+
+function drop_ws {
+  trace "drop_ws"
+  while :;do
+    if [[ "$C" == [[:blank:]$'\n\r'] ]];then
+      chomp
+    else
+      break
+    fi
+  done
+}
+
+function expect {
+  trace "expect $1"
+  [[ $C == $1 ]] || error "expected $1 but found $C"
+}
+
+function array {
+  trace "array"
+  (( OBJ_COUNT++ ))
+  local array_name="OBJ$OBJ_COUNT"
+  chomp
+  drop_ws
+  if [[ $C != ']' ]];then
+    read_next
+    eval "$array_name+=($RV)"
+    while :;do
+      [[ $C == '' ]] && error "unterminated array: didn't find ]"
+      drop_ws
+      if [[ $C == ']' ]];then
+        break
+      elif [[ $C == ',' ]];then
+        chomp
+        drop_ws
+        read_next
+        eval "$array_name+=($RV)"
+      else
+        error "expected , or ] but found '$C'"
+      fi
+    done
+  fi
+  RV="$array_name"
+  chomp
+}
+
+function object {
+  trace "object"
+  (( OBJ_COUNT++ ))
+  local obj_name="OBJ$OBJ_COUNT"
+  eval "declare -G -A $obj_name"
+  chomp
+  drop_ws
+  if [[ $C != '}' ]];then
+    expect '"'
+    string
+    local k="$RV"
+    drop_ws
+    expect ":"
+    chomp
+    drop_ws
+    read_next
+    eval "$obj_name[$k]=$RV"
+    while :;do
+      [[ $C == '' ]] && error "unterminated object: didn't find }"
+      drop_ws
+      if [[ $C == '}' ]];then
+        break
+      elif [[ $C == ',' ]];then
+        chomp
+        drop_ws
+        expect '"'
+        string
+        local k="$RV"
+        drop_ws
+        expect ":"
+        chomp
+        drop_ws
+        read_next
+        eval "$obj_name[$k]=$RV"
+      else
+        error "expected , or } but found $C"
+      fi
+    done
+  fi
+  RV="$obj_name"
+  chomp
+}
+
+function number {
+  trace "number"
+  local NUM="$C"
+  local SEENDOT=
+  local SEENEXP=
+  chomp
+  if [[ "$NUM" == '-' ]];then # negative number
+    [[ "$C" != [[:digit:]] ]] && error "minus not followed by digit: $NUM$C"
+    if [[ "$C" == '0' ]];then
+      NUM="$NUM$C"
+      chomp
+      [[ $C == [[:digit:]] ]] && error "number starts with zero: $NUM$C"
+    fi
+  elif [[ "$NUM" == '0' ]];then
+    [[ $C == [[:digit:]] ]] && error "number starts with zero: $NUM$C"
+  fi
+  while :;do
+    if [[ "$C" == [[:digit:]] ]];then
+      NUM="$NUM$C"
+    elif [[ $C == . ]];then
+      if [[ $SEENDOT ]]; then
+        error "number has too many dots in it: $NUM$C"
+      elif [[ $SEENEXP ]]; then
+        error "exponents cannot contain dots: $NUM$C"
+      else
+        NUM="$NUM$C"
+        SEENDOT=1
+        chomp
+        [[ "$C" != [[:digit:]] ]] && error "dot not followed by digit: $NUM$C"
+        continue
+      fi
+    elif [[ $C == [Ee] ]];then
+      if [[ $SEENEXP ]]; then
+        error "number has too many Es in it: $NUM$C"
+      fi
+      SEENEXP=1
+      NUM="$NUM$C"
+      chomp
+      if [[ $C == [+-] ]];then
+        NUM="$NUM$C"
+        chomp
+      fi
+      if [[ $C != [[:digit:]] ]];then
+        error "a number must follow an exponent or sign: $NUM$C"
+      fi
+      NUM="$NUM$C"
+    else
+      RV=$NUM
+      break
+    fi
+    chomp
+  done
+  lastchar=${NUM:$(( ${#NUM}-1 )):1}
+  [[ $lastchar == [Ee.+-] ]] && error "invalid number $NUM ($lastchar)"
+}
+
+function string {
+  trace "string"
+  STR=
+  while :;do
+    [[ $C == '' ]] && error "unterminated string: didn't find \""
+    chomp
+    if [[ "$C" == $'\n' ]];then
+      error "unescaped newline in string"
+    elif [[ "$C" == $'\t' ]];then
+      error "unescaped tab in string"
+    elif [[ $C == $'\\' ]];then # handle escapes
+      STR="$STR$C"
+      chomp
+      if [[ $C != [bfnrtu\"$'\\'/] ]];then
+        error "invalid escape sequence in string: \\$C"
+      fi
+    elif [[ $C == '"' ]];then
+      RV="s\"$STR\"" # prepend with s so we can quote it later
+      break
+    fi
+    STR="$STR$C"
+  done
+  chomp
+}
+
+function null {
+  trace "null"
+  if [[ ${BUF:0:3} == ull ]];then
+    drop 3
+    RV="null"
+  else
+    error "expected 'null' but saw '$C${BUF:0:3}'"
+  fi
+  chomp
+}
+
+function bool_true {
+  trace "bool_true"
+  if [[ ${BUF:0:3} == rue ]];then
+    drop 3
+    RV="true"
+  else
+    error "expected 'true' but saw '$C${BUF:0:3}'"
+  fi
+  chomp
+}
+
+function bool_false {
+  trace "bool_false"
+  if [[ ${BUF:0:4} == alse ]];then
+    drop 4
+    RV="false"
+  else
+    error "expected 'false' but saw '$C${BUF:0:4}'"
+  fi
+  chomp
+}
+
+function read_next {
+  trace "read_next: $C"
+  case "$C" in
+    [[:digit:]-]) number;;
+    '"') string;;
+    'n') null;;
+    't') bool_true;;
+    'f') bool_false;;
+    '[') array;;
+    '{') object;;
+    *) error "expected 0-9, \", 't', 'f', '[', or '{' but got: '$C'"
+  esac
+}
+
+function from_json {
+  C=
+  BUF="$1"
+  LINE=1
+  trace "> $BUF"
+  chomp
+  drop_ws
+  read_next
+}
+
+function to_json {
+  trace "to_json: $1"
+  ARG=$1
+  TYPE=$(declare -p "$ARG" 2> /dev/null)
+  if (( $? > 0 ));then
+    trace "scalar"
+    OUT+=("$ARG")
+  elif [[ "$TYPE" == "declare --"* ]];then
+    trace "indirect ref"
+    eval "OUT+=(\$$ARG)"
+  elif [[ "$TYPE" == "declare -a"* ]];then
+    trace "array"
+    OUT+=('[')
+    local -n ARR="$ARG"
+    local i=0
+    local len=${#ARR[@]}
+    while (( i < len  ));do
+      to_json "${ARR[$i]}"
+      (( i++ ))
+      (( i < len )) && OUT+=(',')
+    done
+    OUT+=(']')
+  elif [[ "$TYPE" == "declare -A"* ]];then
+    trace "assoc array"
+    OUT+=('{')
+    local -n AAR="$ARG"
+    local i=0
+    local len=${#AAR[@]}
+    for k in "${!AAR[@]}";do
+      to_json "$k"
+      OUT+=(':')
+      to_json "${AAR[$k]}"
+      (( i++ ))
+      (( i < len )) && OUT+=(',')
+    done
+    OUT+=('}')
+  elif [[ "$TYPE" == "declare -n"* ]];then
+    trace "nameref"
+    local name=${TYPE#*\"}
+    to_json ${name:0:-1}
+  else
+    error "unknown: $TYPE"
+  fi
+}
+
+function slurp_input {
+  IFS= read -rs -d '' IN
+}
+
+function prettyprint {
+  local i=0
+  local len=${#OUT[@]}
+  local indentlen=${#INDENT}
+  local indent=
+  local linebuf=
+  while (( i < len  ));do
+    local token="${OUT[$i]}"
+    [[ ${token:0:1} == 's' ]] && token="\"${token:1}\""
+    case $token in
+      [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
+               echo -E "$linebuf$token"
+             else
+               echo "$indent$token";
+             fi
+             indent="$indent$INDENT";
+             linebuf="$indent";;
+      [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}";
+             [[ "$linebuf" == *[^[:blank:]] ]] && echo "$linebuf";
+             linebuf="$indent";
+             echo "$indent$token";;
+        ',') echo -E "$linebuf,";
+             linebuf="$indent";;
+        ':') linebuf="$linebuf: ";;
+          *) linebuf="$linebuf$token"
+    esac
+    (( i++ ))
+  done
+  [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
+}
+
+function uglyprint {
+  local i=0
+  local len=${#OUT[@]}
+  while (( i < len  ));do
+    local token="${OUT[$i]}"
+    [[ ${token:0:1} == 's' ]] && token="\"${token:1}\""
+    echo -nE "$token"
+    (( i++ ))
+  done
+  echo
+}
+
+function run {
+  [[ $BEFORE ]] && eval "$BEFORE"
+  from_json "$IN"
+  to_json "$RV"
+  if [[ $PRETTY ]];then
+    prettyprint
+  else
+    uglyprint
+  fi
+  [[ $AFTER ]] && eval "$AFTER"
+  OUT=()
+}
+
+# main
+while getopts ":b:a:" opt; do
+  case ${opt} in
+    b) BEFORE="$OPTARG";;
+    a) AFTER="$OPTARG";;
+  esac
+  shift $((OPTIND -1))
+done
+
+slurp_input
+while :;do
+  run
+  drop_blanks
+  if [[ "$C" ]];then
+    expect $'\n'
+    if [[ "$BUF" ]];then
+      IN="$BUF"
+      continue
+    fi
+  fi
+  break
+done
+
+# vim: set ft=sh:
