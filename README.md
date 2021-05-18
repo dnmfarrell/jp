@@ -65,6 +65,13 @@ Being shell native has some downsides too:
 
 All that's needed to solve these issues is a better shell programming language which is really fast and used everywhere.
 
+Other Shell JSON Parsers
+------------------------
+These parse a JSON stream of text, and output a linear tree of paths which can be grepped:
+* [JSON.sh](https://github.com/dominictarr/JSON.sh/) is compatible with ash, bash, dash and zsh
+* [JSON.bash](https://github.com/ingydotnet/git-hub/tree/master/ext/json-bash) is a source-able bash library
+
+[TickTick](https://github.com/kristopolous/TickTick) is a Bash library which provides inline JSON parsing and searching.
 
 License
 -------
