@@ -78,7 +78,7 @@ function array {
   drop_ws
   if [[ $C != ']' ]];then
     read_next
-    eval $array_name+='("$RV")'
+    eval $array_name+='("$R")'
     while :;do
       [[ $C == '' ]] && error "unterminated array: didn't find ]"
       drop_ws
@@ -88,13 +88,13 @@ function array {
         chomp
         drop_ws
         read_next
-        eval $array_name+='("$RV")'
+        eval $array_name+='("$R")'
       else
         error "expected , or ] but found '$C'"
       fi
     done
   fi
-  RV=$ref_name
+  R=$ref_name
   chomp
 }
 
@@ -110,13 +110,13 @@ function object {
   if [[ $C != '}' ]];then
     expect '"'
     string
-    local k="$RV"
+    local k="$R"
     drop_ws
     expect ":"
     chomp
     drop_ws
     read_next
-    eval $obj_name['$k']='$RV'
+    eval $obj_name['$k']='$R'
     while :;do
       [[ $C == '' ]] && error "unterminated object: didn't find }"
       drop_ws
@@ -127,19 +127,19 @@ function object {
         drop_ws
         expect '"'
         string
-        local k="$RV"
+        local k="$R"
         drop_ws
         expect ":"
         chomp
         drop_ws
         read_next
-        eval $obj_name['$k']='$RV'
+        eval $obj_name['$k']='$R'
       else
         error "expected , or } but found $C"
       fi
     done
   fi
-  RV=$ref_name
+  R=$ref_name
   chomp
 }
 
@@ -190,7 +190,7 @@ function number {
       fi
       NUM="$NUM$C"
     else
-      RV=$NUM
+      R=$NUM
       break
     fi
     chomp
@@ -224,7 +224,7 @@ function string {
         error "invalid escape sequence in string: \\$C"
       fi
     elif [[ $C == '"' ]];then
-      RV="\"$STR\"" # prepend with s so we can quote it later
+      R="\"$STR\"" # prepend with s so we can quote it later
       break
     fi
     STR="$STR$C"
@@ -236,7 +236,7 @@ function null {
   trace "null"
   if [[ ${BUF:0:3} == ull ]];then
     drop 3
-    RV="null"
+    R="null"
   else
     error "expected 'null' but saw '$C${BUF:0:3}'"
   fi
@@ -247,7 +247,7 @@ function bool_true {
   trace "bool_true"
   if [[ ${BUF:0:3} == rue ]];then
     drop 3
-    RV="true"
+    R="true"
   else
     error "expected 'true' but saw '$C${BUF:0:3}'"
   fi
@@ -258,7 +258,7 @@ function bool_false {
   trace "bool_false"
   if [[ ${BUF:0:4} == alse ]];then
     drop 4
-    RV="false"
+    R="false"
   else
     error "expected 'false' but saw '$C${BUF:0:4}'"
   fi
@@ -391,7 +391,7 @@ function run {
   [[ $BEFORE ]] && eval "$BEFORE"
   from_json "$IN"
   [[ $AFTER ]] && eval "$AFTER"
-  to_json "$RV"
+  to_json "$R"
   if [[ $PRETTY ]];then
     prettyprint
   else
