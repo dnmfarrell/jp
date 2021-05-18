@@ -338,6 +338,14 @@ function slurp_input {
   IFS= read -rs -d '' IN
 }
 
+function detect_nullbyte {
+  slurp_input
+  if [[ -n $IN ]]; then
+    printf -v err "received input: %q after null byte" "$IN"
+    error "$err"
+  fi
+}
+
 function prettyprint {
   local i=0
   local len=${#OUT[@]}
@@ -414,5 +422,6 @@ while :;do
   fi
   break
 done
-
+detect_nullbyte
+exit 0
 # vim: set ft=sh:

@@ -2,7 +2,7 @@ jp
 ==
 jp is a JSON processor: it takes a stream of JSON text, validates it, optionally changes it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
 
-As a validator, jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte (which shell treats the same as an empty string).
+As a validator, jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
 
 
 Transforming
