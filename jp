@@ -369,13 +369,13 @@ function uglyprint {
 function run {
   [[ $BEFORE ]] && eval "$BEFORE"
   from_json "$IN"
+  [[ $AFTER ]] && eval "$AFTER"
   to_json "$RV"
   if [[ $PRETTY ]];then
     prettyprint
   else
     uglyprint
   fi
-  [[ $AFTER ]] && eval "$AFTER"
   OUT=()
 }
 
