@@ -2,7 +2,12 @@ jp
 ==
 jp is a JSON processor: it takes a stream of JSON text, validates it, optionally changes it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
 
-As a validator, jp passes 310/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the better validators. The 8 failures happen because jp does not validate UTF-8 codepoints.
+As a validator, jp passes 310/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the better validators. 7 failures happen because jp does not validate UTF-8 codepoints, and 1 failure stems from jp not detecting a trailing null byte (which shell treats the same as an empty string).
+
+
+Transforming
+------------
+...
 
 Printing
 --------
@@ -31,7 +36,7 @@ The INDENT variable is used to indent nested data when pretty printing. It is se
       ]
     }
 
-    # make indent a tab - note the quoting to protect whitespace - a recurring theme in shell code
+    # tab indent - quoting to protect whitespace a recurring theme in shell code
     echo '{"foo":[1,2,3]}' | jp -b 'INDENT="     "'
     {
             "foo": [
@@ -47,8 +52,10 @@ Shell Native
 ------------
 jp is a shell native program, that is, it is written in the same programming language used to program the shell. This has some benefits:
 
-1. Users of the program do not need to learn another DSL for programming jp. For example to make jp run under trace mode: `jp -b TRACE=1` (-b stands for "before execution").
+1. Users of the program do not need to learn another DSL for programming jp. For example to make jp run under trace mode: `jp -b TRACE=1`
 2. Because jp runs in the shell, I did not have to anticipate all the ways in which users may which to change the program behavior, and build APIs for them, unlike if it was written in C, for example. Using the before or after hooks, users can pass in code which is eval'd.
+3. Being written in shell code in a single file, all users need to modify it is bash and a text editor.
+4. Learning to program jp means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
 
 Being shell native has some downsides too:
 1. Shell code's limited support for programming concepts like data structures, return values and so on make it difficult to create apps in
