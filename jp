@@ -78,7 +78,7 @@ function array {
   drop_ws
   if [[ $C != ']' ]];then
     read_next
-    eval "$array_name+=($RV)"
+    eval $array_name+='("$RV")'
     while :;do
       [[ $C == '' ]] && error "unterminated array: didn't find ]"
       drop_ws
@@ -88,7 +88,7 @@ function array {
         chomp
         drop_ws
         read_next
-        eval "$array_name+=($RV)"
+        eval $array_name+='("$RV")'
       else
         error "expected , or ] but found '$C'"
       fi
@@ -116,7 +116,7 @@ function object {
     chomp
     drop_ws
     read_next
-    eval "$obj_name[$k]=$RV"
+    eval $obj_name['$k']='$RV'
     while :;do
       [[ $C == '' ]] && error "unterminated object: didn't find }"
       drop_ws
@@ -133,7 +133,7 @@ function object {
         chomp
         drop_ws
         read_next
-        eval "$obj_name[$k]=$RV"
+        eval $obj_name['$k']='$RV'
       else
         error "expected , or } but found $C"
       fi
@@ -216,7 +216,7 @@ function string {
         error "invalid escape sequence in string: \\$C"
       fi
     elif [[ $C == '"' ]];then
-      RV="s\"$STR\"" # prepend with s so we can quote it later
+      RV="\"$STR\"" # prepend with s so we can quote it later
       break
     fi
     STR="$STR$C"
@@ -283,7 +283,7 @@ function from_json {
 
 function to_json {
   trace "to_json: $1"
-  ARG=$1
+  ARG="$1"
   TYPE=$(declare -p "$ARG" 2> /dev/null)
   if (( $? > 0 ));then
     trace "scalar"
@@ -338,7 +338,6 @@ function prettyprint {
   local linebuf=
   while (( i < len  ));do
     local token="${OUT[$i]}"
-    [[ ${token:0:1} == 's' ]] && token="\"${token:1}\""
     case $token in
       [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
                echo -E "$linebuf$token"
@@ -366,7 +365,6 @@ function uglyprint {
   local len=${#OUT[@]}
   while (( i < len  ));do
     local token="${OUT[$i]}"
-    [[ ${token:0:1} == 's' ]] && token="\"${token:1}\""
     echo -nE "$token"
     (( i++ ))
   done
