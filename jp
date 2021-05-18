@@ -212,7 +212,15 @@ function string {
     elif [[ $C == $'\\' ]];then # handle escapes
       STR="$STR$C"
       chomp
-      if [[ $C != [bfnrtu\"$'\\'/] ]];then
+      if [[ $C == u ]];then # unicode
+        local esc=u
+        for i in 1 2 3 4;do
+          chomp
+          [[ $C == [0-9A-Fa-f] ]] || error "invalid Unicode escape sequence \\$esc$C"
+          esc+=$C
+        done
+        $C=$esc
+      elif [[ $C != [bfnrt\"$'\\'/] ]];then
         error "invalid escape sequence in string: \\$C"
       fi
     elif [[ $C == '"' ]];then
