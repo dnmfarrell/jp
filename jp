@@ -400,28 +400,29 @@ function run {
   OUT=()
 }
 
-# main
-while getopts ":b:a:" opt; do
-  case ${opt} in
-    b) BEFORE="$OPTARG";;
-    a) AFTER="$OPTARG";;
-  esac
-  shift $((OPTIND -1))
-done
-
-slurp_input
-while :;do
-  run
-  drop_blanks
-  if [[ "$C" ]];then
-    expect $'\n'
-    if [[ "$BUF" ]];then
-      IN="$BUF"
-      continue
+function main {
+  while getopts ":b:a:" opt; do
+    case ${opt} in
+      b) BEFORE="$OPTARG";;
+      a) AFTER="$OPTARG";;
+    esac
+    shift $((OPTIND -1))
+  done
+  slurp_input
+  while :;do
+    run
+    drop_blanks
+    if [[ "$C" ]];then
+      expect $'\n'
+      if [[ "$BUF" ]];then
+        IN="$BUF"
+        continue
+      fi
     fi
-  fi
-  break
-done
-detect_nullbyte
-exit 0
+    break
+  done
+  detect_nullbyte
+  exit 0
+}
+[[ "$BASH_SOURCE" == "$0" ]] && main
 # vim: set ft=sh:
