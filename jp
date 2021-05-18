@@ -356,17 +356,33 @@ function prettyprint {
     local token="${OUT[$i]}"
     case $token in
       [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
-               echo -E "$linebuf$token"
+               linebuf="$linebuf$token"
              else
-               echo "$indent$token";
+               linebuf="$indent$token"
              fi
-             indent="$indent$INDENT";
-             linebuf="$indent";;
-      [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}";
-             [[ "$linebuf" == *[^[:blank:]] ]] && echo "$linebuf";
-             linebuf="$indent";
-             echo "$indent$token";;
-        ',') echo -E "$linebuf,";
+             indent="$indent$INDENT"
+             if [[ "${OUT[$(($i+1))]}" != [\]}] ]];then
+               echo -E "$linebuf"
+               linebuf="$indent"
+             fi
+             ;;
+      [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}"
+             if [[ "$linebuf" == *[^[:blank:]] ]];then
+               if [[ "${linebuf:$((${#linebuf}-1)):1}" == [\[{] ]];then
+                 linebuf="$linebuf$token"
+               else
+                 echo -E "$linebuf"
+                 linebuf="$indent$token"
+               fi
+             else
+               linebuf="$indent$token"
+             fi
+             if [[ "${OUT[$(($i+1))]}" != ',' ]];then
+               echo -E "$linebuf"
+               linebuf="$indent"
+             fi
+             ;;
+        ',') echo -E "$linebuf,"
              linebuf="$indent";;
         ':') linebuf="$linebuf: ";;
           *) linebuf="$linebuf$token"
