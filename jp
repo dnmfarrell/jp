@@ -53,7 +53,11 @@ function drop_ws {
 
 function expect {
   trace "expect $1"
-  [[ $C == $1 ]] || error "expected $1 but found $C"
+  if [[ $C != $1 ]];then
+    local msg
+    printf -v msg "expected %q but found %q" "$1" "$C"
+    error "$msg"
+  fi
 }
 
 function array {
