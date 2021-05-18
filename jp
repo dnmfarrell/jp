@@ -63,7 +63,10 @@ function expect {
 function array {
   trace "array"
   (( OBJ_COUNT++ ))
-  local array_name="OBJ$OBJ_COUNT"
+  local array_name="A$OBJ_COUNT"
+  local ref_name="R$OBJ_COUNT"
+  eval "declare -ga $array_name"
+  eval "declare -gn $ref_name=$array_name"
   chomp
   drop_ws
   if [[ $C != ']' ]];then
@@ -84,15 +87,17 @@ function array {
       fi
     done
   fi
-  RV="$array_name"
+  RV=$ref_name
   chomp
 }
 
 function object {
   trace "object"
   (( OBJ_COUNT++ ))
-  local obj_name="OBJ$OBJ_COUNT"
-  eval "declare -G -A $obj_name"
+  local obj_name="O$OBJ_COUNT"
+  local ref_name="R$OBJ_COUNT"
+  eval "declare -gA $obj_name"
+  eval "declare -gn $ref_name=$obj_name"
   chomp
   drop_ws
   if [[ $C != '}' ]];then
@@ -127,7 +132,7 @@ function object {
       fi
     done
   fi
-  RV="$obj_name"
+  RV=$ref_name
   chomp
 }
 
