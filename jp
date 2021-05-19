@@ -23,6 +23,7 @@ function trace {
 
 function chomp {
   C="${BUF:0:1}"
+  trace "chomp: $C"
   drop 1
   if [[ $C == [$'\n\v\f\r'] ]];then
     (( COL=1 ))
@@ -30,10 +31,10 @@ function chomp {
   else
     (( COL++ ))
   fi
-  trace "chomp: $C"
 }
 
 function drop {
+  trace "drop"
   BUF="${BUF:$1}"
 }
 
@@ -281,10 +282,10 @@ function read_next {
 }
 
 function from_json {
+  trace "from_json: $1"
   C=
   BUF="$1"
   LINE=1
-  trace "> $BUF"
   chomp
   drop_ws
   read_next
@@ -336,10 +337,12 @@ function to_json {
 }
 
 function slurp_input {
+  trace "slurp_input"
   IFS= read -rs -d '' IN
 }
 
 function detect_nullbyte {
+  trace "detect_nullbyte"
   slurp_input
   if [[ -n $IN ]]; then
     printf -v err "received input: %q after null byte" "$IN"
@@ -348,6 +351,7 @@ function detect_nullbyte {
 }
 
 function prettyprint {
+  trace "prettyprint"
   local i=0
   local len=${#OUT[@]}
   local indentlen=${#INDENT}
@@ -394,6 +398,7 @@ function prettyprint {
 }
 
 function uglyprint {
+  trace "uglyprint"
   local i=0
   local len=${#OUT[@]}
   while (( i < len  ));do
@@ -405,6 +410,7 @@ function uglyprint {
 }
 
 function run {
+  trace "run"
   [[ $BEFORE ]] && eval "$BEFORE"
   from_json "$IN"
   [[ $AFTER ]] && eval "$AFTER"
@@ -418,6 +424,7 @@ function run {
 }
 
 function main {
+  trace "main"
   while getopts ":b:a:" opt; do
     case ${opt} in
       b) BEFORE="$OPTARG";;
