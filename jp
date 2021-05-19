@@ -19,7 +19,7 @@ function jp.trace {
 
 function jp.chomp {
   JP_C="${JP_BUF:0:1}"
-  jp.trace "jp.chomp:$JP_C"
+  jp.trace "chomp:$JP_C"
   jp.drop 1
   if [[ $JP_C == [$'\n\v\f\r'] ]];then
     (( JP_COL=1 ))
@@ -57,7 +57,7 @@ function jp.drop_ws {
 }
 
 function jp.expect {
-  jp.trace "expect $1"
+  jp.trace "expect:$1"
   if [[ $JP_C != $1 ]];then
     local msg
     printf -v msg "expected %q but found %q" "$1" "$JP_C"
@@ -264,7 +264,7 @@ function jp.bool_false {
 }
 
 function jp.read_next {
-  jp.trace "read_next: $JP_C"
+  jp.trace "read_next:$JP_C"
   case "$JP_C" in
     [[:digit:]-]) jp.number;;
     '"') jp.string;;
@@ -278,7 +278,7 @@ function jp.read_next {
 }
 
 function jp.from_json {
-  jp.trace "from_json: $1"
+  jp.trace "from_json:$1"
   JP_C=
   JP_BUF="$1"
   JP_COL=1
@@ -289,14 +289,14 @@ function jp.from_json {
 }
 
 function jp.to_json {
-  jp.trace "to_json: $1"
+  jp.trace "to_json:$1"
   ARG="$1"
   TYPE=$(declare -p "$ARG" 2> /dev/null)
   if (( $? > 0 ));then
     jp.trace "scalar"
     JP_OUT+=("$ARG")
   elif [[ "$TYPE" == "declare --"* ]];then
-    jp.trace "indirect ref"
+    jp.trace "indirect-ref"
     eval "JP_OUT+=(\$$ARG)"
   elif [[ "$TYPE" == "declare -a"* ]];then
     jp.trace "array"
@@ -311,7 +311,7 @@ function jp.to_json {
     done
     JP_OUT+=(']')
   elif [[ "$TYPE" == "declare -A"* ]];then
-    jp.trace "assoc array"
+    jp.trace "assoc-array"
     JP_OUT+=('{')
     local -n AAR="$ARG"
     local i=0
