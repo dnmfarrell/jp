@@ -6,42 +6,38 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-INDENT="  "
-AFTER=
-BEFORE=
-PRETTY=;[[ -t 1 ]] && PRETTY=1 # default to pretty for a tty
-TRACE=
+declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT
 
 function error {
-  echo "Error: $1 at line $LINE, column $COL" >&2
+  echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
   exit 1
 }
 
 function trace {
-  [[ $TRACE ]] && echo "$1" >&2
+  [[ $JP_TRACE ]] && printf "%q\n" "$1" >&2
 }
 
 function chomp {
-  C="${BUF:0:1}"
-  trace "chomp: $C"
+  JP_C="${JP_BUF:0:1}"
+  trace "chomp:$JP_C"
   drop 1
-  if [[ $C == [$'\n\v\f\r'] ]];then
-    (( COL=1 ))
-    (( LINE++ ))
+  if [[ $JP_C == [$'\n\v\f\r'] ]];then
+    (( JP_COL=1 ))
+    (( JP_LINE++ ))
   else
-    (( COL++ ))
+    (( JP_COL++ ))
   fi
 }
 
 function drop {
   trace "drop"
-  BUF="${BUF:$1}"
+  JP_BUF="${JP_BUF:$1}"
 }
 
 function drop_blanks {
   trace "drop_blanks"
   while :;do
-    if [[ "$C" == [[:blank:]] ]];then
+    if [[ "$JP_C" == [[:blank:]] ]];then
       chomp
     else
       break
@@ -52,7 +48,7 @@ function drop_blanks {
 function drop_ws {
   trace "drop_ws"
   while :;do
-    if [[ "$C" == [[:blank:]$'\n\r'] ]];then
+    if [[ "$JP_C" == [[:blank:]$'\n\r'] ]];then
       chomp
     else
       break
@@ -62,9 +58,9 @@ function drop_ws {
 
 function expect {
   trace "expect $1"
-  if [[ $C != $1 ]];then
+  if [[ $JP_C != $1 ]];then
     local msg
-    printf -v msg "expected %q but found %q" "$1" "$C"
+    printf -v msg "expected %q but found %q" "$1" "$JP_C"
     error "$msg"
   fi
 }
@@ -78,21 +74,21 @@ function array {
   eval "declare -gn $ref_name=$array_name"
   chomp
   drop_ws
-  if [[ $C != ']' ]];then
+  if [[ $JP_C != ']' ]];then
     read_next
     eval $array_name+='("$R")'
     while :;do
-      [[ $C == '' ]] && error "unterminated array: didn't find ]"
+      [[ $JP_C == '' ]] && error "unterminated array: didn't find ]"
       drop_ws
-      if [[ $C == ']' ]];then
+      if [[ $JP_C == ']' ]];then
         break
-      elif [[ $C == ',' ]];then
+      elif [[ $JP_C == ',' ]];then
         chomp
         drop_ws
         read_next
         eval $array_name+='("$R")'
       else
-        error "expected , or ] but found '$C'"
+        error "expected , or ] but found '$JP_C'"
       fi
     done
   fi
@@ -109,7 +105,7 @@ function object {
   eval "declare -gn $ref_name=$obj_name"
   chomp
   drop_ws
-  if [[ $C != '}' ]];then
+  if [[ $JP_C != '}' ]];then
     expect '"'
     string
     local k="$R"
@@ -120,11 +116,11 @@ function object {
     read_next
     eval $obj_name['$k']='$R'
     while :;do
-      [[ $C == '' ]] && error "unterminated object: didn't find }"
+      [[ $JP_C == '' ]] && error "unterminated object: didn't find }"
       drop_ws
-      if [[ $C == '}' ]];then
+      if [[ $JP_C == '}' ]];then
         break
-      elif [[ $C == ',' ]];then
+      elif [[ $JP_C == ',' ]];then
         chomp
         drop_ws
         expect '"'
@@ -137,7 +133,7 @@ function object {
         read_next
         eval $obj_name['$k']='$R'
       else
-        error "expected , or } but found $C"
+        error "expected , or } but found $JP_C"
       fi
     done
   fi
@@ -147,129 +143,129 @@ function object {
 
 function number {
   trace "number"
-  local NUM="$C"
-  local SEENDOT=
-  local SEENEXP=
+  local num="$JP_C"
+  local seendot=
+  local seenexp=
   chomp
-  if [[ "$NUM" == '-' ]];then # negative number
-    [[ "$C" != [[:digit:]] ]] && error "minus not followed by digit: $NUM$C"
-    if [[ "$C" == '0' ]];then
-      NUM="$NUM$C"
+  if [[ "$num" == '-' ]];then # negative number
+    [[ "$JP_C" != [[:digit:]] ]] && error "minus not followed by digit: $num$JP_C"
+    if [[ "$JP_C" == '0' ]];then
+      num="$num$JP_C"
       chomp
-      [[ $C == [[:digit:]] ]] && error "number starts with zero: $NUM$C"
+      [[ $JP_C == [[:digit:]] ]] && error "number starts with zero: $num$JP_C"
     fi
-  elif [[ "$NUM" == '0' ]];then
-    [[ $C == [[:digit:]] ]] && error "number starts with zero: $NUM$C"
+  elif [[ "$num" == '0' ]];then
+    [[ $JP_C == [[:digit:]] ]] && error "number starts with zero: $num$JP_C"
   fi
   while :;do
-    if [[ "$C" == [[:digit:]] ]];then
-      NUM="$NUM$C"
-    elif [[ $C == . ]];then
-      if [[ $SEENDOT ]]; then
-        error "number has too many dots in it: $NUM$C"
-      elif [[ $SEENEXP ]]; then
-        error "exponents cannot contain dots: $NUM$C"
+    if [[ "$JP_C" == [[:digit:]] ]];then
+      num="$num$JP_C"
+    elif [[ $JP_C == . ]];then
+      if [[ $seendot ]]; then
+        error "number has too many dots in it: $num$JP_C"
+      elif [[ $seenexp ]]; then
+        error "exponents cannot contain dots: $num$JP_C"
       else
-        NUM="$NUM$C"
-        SEENDOT=1
+        num="$num$JP_C"
+        seendot=1
         chomp
-        [[ "$C" != [[:digit:]] ]] && error "dot not followed by digit: $NUM$C"
+        [[ "$JP_C" != [[:digit:]] ]] && error "dot not followed by digit: $num$JP_C"
         continue
       fi
-    elif [[ $C == [Ee] ]];then
-      if [[ $SEENEXP ]]; then
-        error "number has too many Es in it: $NUM$C"
+    elif [[ $JP_C == [Ee] ]];then
+      if [[ $seenexp ]]; then
+        error "number has too many Es in it: $num$JP_C"
       fi
-      SEENEXP=1
-      NUM="$NUM$C"
+      seenexp=1
+      num="$num$JP_C"
       chomp
-      if [[ $C == [+-] ]];then
-        NUM="$NUM$C"
+      if [[ $JP_C == [+-] ]];then
+        num="$num$JP_C"
         chomp
       fi
-      if [[ $C != [[:digit:]] ]];then
-        error "a number must follow an exponent or sign: $NUM$C"
+      if [[ $JP_C != [[:digit:]] ]];then
+        error "a number must follow an exponent or sign: $num$JP_C"
       fi
-      NUM="$NUM$C"
+      num="$num$JP_C"
     else
-      R=$NUM
+      R=$num
       break
     fi
     chomp
   done
-  lastchar=${NUM:$(( ${#NUM}-1 )):1}
-  [[ $lastchar == [Ee.+-] ]] && error "invalid number $NUM ($lastchar)"
+  lastchar=${num:$(( ${#num}-1 )):1}
+  [[ $lastchar == [Ee.+-] ]] && error "invalid number $num ($lastchar)"
 }
 
 function string {
   trace "string"
   STR=
   while :;do
-    [[ $C == '' ]] && error "unterminated string: didn't find \""
+    [[ $JP_C == '' ]] && error "unterminated string: didn't find \""
     chomp
-    if [[ "$C" == $'\n' ]];then
+    if [[ "$JP_C" == $'\n' ]];then
       error "unescaped newline in string"
-    elif [[ "$C" == $'\t' ]];then
+    elif [[ "$JP_C" == $'\t' ]];then
       error "unescaped tab in string"
-    elif [[ $C == $'\\' ]];then # handle escapes
-      STR="$STR$C"
+    elif [[ $JP_C == $'\\' ]];then # handle escapes
+      STR="$STR$JP_C"
       chomp
-      if [[ $C == u ]];then # unicode
+      if [[ $JP_C == u ]];then # unicode
         local esc=u
         for i in 1 2 3 4;do
           chomp
-          [[ $C == [0-9A-Fa-f] ]] || error "invalid Unicode escape sequence \\$esc$C"
-          esc+=$C
+          [[ $JP_C == [0-9A-Fa-f] ]] || error "invalid Unicode escape sequence \\$esc$JP_C"
+          esc+=$JP_C
         done
-        $C=$esc
-      elif [[ $C != [bfnrt\"$'\\'/] ]];then
-        error "invalid escape sequence in string: \\$C"
+        $JP_C=$esc
+      elif [[ $JP_C != [bfnrt\"$'\\'/] ]];then
+        error "invalid escape sequence in string: \\$JP_C"
       fi
-    elif [[ $C == '"' ]];then
+    elif [[ $JP_C == '"' ]];then
       R="\"$STR\"" # prepend with s so we can quote it later
       break
     fi
-    STR="$STR$C"
+    STR="$STR$JP_C"
   done
   chomp
 }
 
 function null {
   trace "null"
-  if [[ ${BUF:0:3} == ull ]];then
+  if [[ ${JP_BUF:0:3} == ull ]];then
     drop 3
     R="null"
   else
-    error "expected 'null' but saw '$C${BUF:0:3}'"
+    error "expected 'null' but saw '$JP_C${JP_BUF:0:3}'"
   fi
   chomp
 }
 
 function bool_true {
   trace "bool_true"
-  if [[ ${BUF:0:3} == rue ]];then
+  if [[ ${JP_BUF:0:3} == rue ]];then
     drop 3
     R="true"
   else
-    error "expected 'true' but saw '$C${BUF:0:3}'"
+    error "expected 'true' but saw '$JP_C${JP_BUF:0:3}'"
   fi
   chomp
 }
 
 function bool_false {
   trace "bool_false"
-  if [[ ${BUF:0:4} == alse ]];then
+  if [[ ${JP_BUF:0:4} == alse ]];then
     drop 4
     R="false"
   else
-    error "expected 'false' but saw '$C${BUF:0:4}'"
+    error "expected 'false' but saw '$JP_C${JP_BUF:0:4}'"
   fi
   chomp
 }
 
 function read_next {
-  trace "read_next: $C"
-  case "$C" in
+  trace "read_next: $JP_C"
+  case "$JP_C" in
     [[:digit:]-]) number;;
     '"') string;;
     'n') null;;
@@ -277,15 +273,16 @@ function read_next {
     'f') bool_false;;
     '[') array;;
     '{') object;;
-    *) error "expected 0-9, \", 't', 'f', '[', or '{' but got: '$C'"
+    *) error "expected 0-9, \", 't', 'f', '[', or '{' but got: '$JP_C'"
   esac
 }
 
 function from_json {
   trace "from_json: $1"
-  C=
-  BUF="$1"
-  LINE=1
+  JP_C=
+  JP_BUF="$1"
+  JP_COL=1
+  JP_LINE=1
   chomp
   drop_ws
   read_next
@@ -297,36 +294,36 @@ function to_json {
   TYPE=$(declare -p "$ARG" 2> /dev/null)
   if (( $? > 0 ));then
     trace "scalar"
-    OUT+=("$ARG")
+    JP_OUT+=("$ARG")
   elif [[ "$TYPE" == "declare --"* ]];then
     trace "indirect ref"
-    eval "OUT+=(\$$ARG)"
+    eval "JP_OUT+=(\$$ARG)"
   elif [[ "$TYPE" == "declare -a"* ]];then
     trace "array"
-    OUT+=('[')
+    JP_OUT+=('[')
     local -n ARR="$ARG"
     local i=0
     local len=${#ARR[@]}
     while (( i < len  ));do
       to_json "${ARR[$i]}"
       (( i++ ))
-      (( i < len )) && OUT+=(',')
+      (( i < len )) && JP_OUT+=(',')
     done
-    OUT+=(']')
+    JP_OUT+=(']')
   elif [[ "$TYPE" == "declare -A"* ]];then
     trace "assoc array"
-    OUT+=('{')
+    JP_OUT+=('{')
     local -n AAR="$ARG"
     local i=0
     local len=${#AAR[@]}
     for k in "${!AAR[@]}";do
       to_json "$k"
-      OUT+=(':')
+      JP_OUT+=(':')
       to_json "${AAR[$k]}"
       (( i++ ))
-      (( i < len )) && OUT+=(',')
+      (( i < len )) && JP_OUT+=(',')
     done
-    OUT+=('}')
+    JP_OUT+=('}')
   elif [[ "$TYPE" == "declare -n"* ]];then
     trace "nameref"
     local name=${TYPE#*\"}
@@ -338,35 +335,36 @@ function to_json {
 
 function slurp_input {
   trace "slurp_input"
-  IFS= read -rs -d '' IN
+  IFS= read -rs -d '' JP_IN
 }
 
 function detect_nullbyte {
   trace "detect_nullbyte"
   slurp_input
-  if [[ -n $IN ]]; then
-    printf -v err "received input: %q after null byte" "$IN"
+  if [[ -n $JP_IN ]]; then
+    printf -v err "received input: %q after null byte" "$JP_IN"
     error "$err"
   fi
 }
 
 function prettyprint {
   trace "prettyprint"
+  local indentchars="$1"
   local i=0
-  local len=${#OUT[@]}
-  local indentlen=${#INDENT}
+  local len=${#JP_OUT[@]}
+  local indentlen=${#indentchars}
   local indent=
   local linebuf=
   while (( i < len  ));do
-    local token="${OUT[$i]}"
+    local token="${JP_OUT[$i]}"
     case $token in
       [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
                linebuf="$linebuf$token"
              else
                linebuf="$indent$token"
              fi
-             indent="$indent$INDENT"
-             if [[ "${OUT[$(($i+1))]}" != [\]}] ]];then
+             indent="$indent$indentchars"
+             if [[ "${JP_OUT[$(($i+1))]}" != [\]}] ]];then
                echo -E "$linebuf"
                linebuf="$indent"
              fi
@@ -382,7 +380,7 @@ function prettyprint {
              else
                linebuf="$indent$token"
              fi
-             if [[ "${OUT[$(($i+1))]}" != ',' ]];then
+             if [[ "${JP_OUT[$(($i+1))]}" != ',' ]];then
                echo -E "$linebuf"
                linebuf="$indent"
              fi
@@ -400,9 +398,9 @@ function prettyprint {
 function uglyprint {
   trace "uglyprint"
   local i=0
-  local len=${#OUT[@]}
+  local len=${#JP_OUT[@]}
   while (( i < len  ));do
-    local token="${OUT[$i]}"
+    local token="${JP_OUT[$i]}"
     echo -nE "$token"
     (( i++ ))
   done
@@ -411,34 +409,33 @@ function uglyprint {
 
 function run {
   trace "run"
-  [[ $BEFORE ]] && eval "$BEFORE"
-  from_json "$IN"
-  [[ $AFTER ]] && eval "$AFTER"
+  local pretty=$1 before="$2" after="$3" indent="$4"
+  eval "$before"
+  from_json "$JP_IN"
+  eval "$after"
   to_json "$R"
-  if [[ $PRETTY ]];then
-    prettyprint
+  if [[ $pretty ]];then
+    prettyprint "$indent"
   else
     uglyprint
   fi
-  OUT=()
+  JP_OUT=()
 }
 
 function main {
   trace "main"
-  while getopts ":b:a:" opt; do
-    case ${opt} in
-      b) BEFORE="$OPTARG";;
-      a) AFTER="$OPTARG";;
-    esac
-  done
+  local p b a t i="  "
+  [[ -t 1 ]] && p=1 # default to pretty for a tty
+  eval "$1"
+  [[ $t ]] && JP_TRACE=1
   slurp_input
   while :;do
-    run
+    run "$p" "$b" "$a" "$i"
     drop_blanks
-    if [[ "$C" ]];then
+    if [[ "$JP_C" ]];then
       expect $'\n'
-      if [[ "$BUF" ]];then
-        IN="$BUF"
+      if [[ "$JP_BUF" ]];then
+        JP_IN="$JP_BUF"
         continue
       fi
     fi
@@ -447,5 +444,5 @@ function main {
   detect_nullbyte
   exit 0
 }
-[[ "$BASH_SOURCE" == "$0" ]] && main $@
+[[ "$BASH_SOURCE" == "$0" ]] && main "$@"
 # vim: set ft=sh:
