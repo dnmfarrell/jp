@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT
+declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -76,7 +76,7 @@ function jp.array {
   jp.drop_ws
   if [[ $JP_C != ']' ]];then
     jp.read_next
-    eval $array_name+='("$R")'
+    eval $array_name+='("$JP_R")'
     while :;do
       [[ $JP_C == '' ]] && jp.error "unterminated array: didn't find ]"
       jp.drop_ws
@@ -86,13 +86,13 @@ function jp.array {
         jp.chomp
         jp.drop_ws
         jp.read_next
-        eval $array_name+='("$R")'
+        eval $array_name+='("$JP_R")'
       else
         jp.error "expected , or ] but found '$JP_C'"
       fi
     done
   fi
-  R=$ref_name
+  JP_R=$ref_name
   jp.chomp
 }
 
@@ -108,13 +108,13 @@ function jp.object {
   if [[ $JP_C != '}' ]];then
     jp.expect '"'
     jp.string
-    local k="$R"
+    local k="$JP_R"
     jp.drop_ws
     jp.expect ":"
     jp.chomp
     jp.drop_ws
     jp.read_next
-    eval $obj_name['$k']='$R'
+    eval $obj_name['$k']='$JP_R'
     while :;do
       [[ $JP_C == '' ]] && jp.error "unterminated object: didn't find }"
       jp.drop_ws
@@ -125,19 +125,19 @@ function jp.object {
         jp.drop_ws
         jp.expect '"'
         jp.string
-        local k="$R"
+        local k="$JP_R"
         jp.drop_ws
         jp.expect ":"
         jp.chomp
         jp.drop_ws
         jp.read_next
-        eval $obj_name['$k']='$R'
+        eval $obj_name['$k']='$JP_R'
       else
         jp.error "expected , or } but found $JP_C"
       fi
     done
   fi
-  R=$ref_name
+  JP_R=$ref_name
   jp.chomp
 }
 
@@ -188,7 +188,7 @@ function jp.number {
       fi
       num="$num$JP_C"
     else
-      R=$num
+      JP_R=$num
       break
     fi
     jp.chomp
@@ -199,7 +199,7 @@ function jp.number {
 
 function jp.string {
   jp.trace "string"
-  STR=
+  local str=
   while :;do
     [[ $JP_C == '' ]] && jp.error "unterminated string: didn't find \""
     jp.chomp
@@ -208,7 +208,7 @@ function jp.string {
     elif [[ "$JP_C" == $'\t' ]];then
       jp.error "unescaped tab in string"
     elif [[ $JP_C == $'\\' ]];then # handle escapes
-      STR="$STR$JP_C"
+      str="$str$JP_C"
       jp.chomp
       if [[ $JP_C == u ]];then # unicode
         local esc=u
@@ -222,10 +222,10 @@ function jp.string {
         jp.error "invalid escape sequence in string: \\$JP_C"
       fi
     elif [[ $JP_C == '"' ]];then
-      R="\"$STR\"" # prepend with s so we can quote it later
+      JP_R="\"$str\"" # prepend with s so we can quote it later
       break
     fi
-    STR="$STR$JP_C"
+    str="$str$JP_C"
   done
   jp.chomp
 }
@@ -234,7 +234,7 @@ function jp.null {
   jp.trace "null"
   if [[ ${JP_BUF:0:3} == ull ]];then
     jp.drop 3
-    R="null"
+    JP_R="null"
   else
     jp.error "expected 'null' but saw '$JP_C${JP_BUF:0:3}'"
   fi
@@ -245,7 +245,7 @@ function jp.bool_true {
   jp.trace "bool_true"
   if [[ ${JP_BUF:0:3} == rue ]];then
     jp.drop 3
-    R="true"
+    JP_R="true"
   else
     jp.error "expected 'true' but saw '$JP_C${JP_BUF:0:3}'"
   fi
@@ -256,7 +256,7 @@ function jp.bool_false {
   jp.trace "bool_false"
   if [[ ${JP_BUF:0:4} == alse ]];then
     jp.drop 4
-    R="false"
+    JP_R="false"
   else
     jp.error "expected 'false' but saw '$JP_C${JP_BUF:0:4}'"
   fi
@@ -290,46 +290,46 @@ function jp.from_json {
 
 function jp.to_json {
   jp.trace "to_json:$1"
-  ARG="$1"
-  TYPE=$(declare -p "$ARG" 2> /dev/null)
+  arg="$1"
+  argtype=$(declare -p "$arg" 2> /dev/null)
   if (( $? > 0 ));then
     jp.trace "scalar"
-    JP_OUT+=("$ARG")
-  elif [[ "$TYPE" == "declare --"* ]];then
+    JP_OUT+=("$arg")
+  elif [[ "$argtype" == "declare --"* ]];then
     jp.trace "indirect-ref"
-    eval "JP_OUT+=(\$$ARG)"
-  elif [[ "$TYPE" == "declare -a"* ]];then
+    eval "JP_OUT+=(\$$arg)"
+  elif [[ "$argtype" == "declare -a"* ]];then
     jp.trace "array"
     JP_OUT+=('[')
-    local -n ARR="$ARG"
+    local -n arr="$arg"
     local i=0
-    local len=${#ARR[@]}
+    local len=${#arr[@]}
     while (( i < len  ));do
-      jp.to_json "${ARR[$i]}"
+      jp.to_json "${arr[$i]}"
       (( i++ ))
       (( i < len )) && JP_OUT+=(',')
     done
     JP_OUT+=(']')
-  elif [[ "$TYPE" == "declare -A"* ]];then
+  elif [[ "$argtype" == "declare -A"* ]];then
     jp.trace "assoc-array"
     JP_OUT+=('{')
-    local -n AAR="$ARG"
+    local -n aar="$arg"
     local i=0
-    local len=${#AAR[@]}
-    for k in "${!AAR[@]}";do
+    local len=${#aar[@]}
+    for k in "${!aar[@]}";do
       jp.to_json "$k"
       JP_OUT+=(':')
-      jp.to_json "${AAR[$k]}"
+      jp.to_json "${aar[$k]}"
       (( i++ ))
       (( i < len )) && JP_OUT+=(',')
     done
     JP_OUT+=('}')
-  elif [[ "$TYPE" == "declare -n"* ]];then
+  elif [[ "$argtype" == "declare -n"* ]];then
     jp.trace "nameref"
-    local name=${TYPE#*\"}
+    local name=${argtype#*\"}
     jp.to_json ${name:0:-1}
   else
-    jp.error "unknown: $TYPE"
+    jp.error "unknown type $argtype"
   fi
 }
 
@@ -413,7 +413,7 @@ function jp.run {
   eval "$before"
   jp.from_json "$JP_IN"
   eval "$after"
-  jp.to_json "$R"
+  jp.to_json "$JP_R"
   if [[ $pretty ]];then
     jp.prettyprint "$indent"
   else
