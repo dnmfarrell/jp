@@ -277,8 +277,8 @@ function jp.read_next {
   esac
 }
 
-function jp.from_json {
-  jp.trace "from_json:$1"
+function jp.parse_json {
+  jp.trace "parse_json:$1"
   JP_C=
   JP_BUF="$1"
   JP_COL=1
@@ -412,7 +412,7 @@ function jp.run {
   local pretty=$1 before="$2" after="$3" indent="$4"
   JP_OBJ_COUNT=0
   eval "$before"
-  jp.from_json "$JP_IN"
+  jp.parse_json "$JP_IN"
   eval "$after"
   jp.to_json "$JP_R"
   if [[ $pretty ]];then
