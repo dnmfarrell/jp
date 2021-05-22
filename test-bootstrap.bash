@@ -1,13 +1,7 @@
 #!/bin/bash
 source jp
-JP_ERROR_COUNT=0
 JP_TEST_COUNT=0
 JP_TEST_FAIL_COUNT=0
-
-function jp.error {
-  jp.trace "error"
-  (( JP_ERROR_COUNT++ ))
-}
 
 function ok {
   jp.trace "ok $*"

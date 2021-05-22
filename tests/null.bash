@@ -11,11 +11,10 @@ function test_good_token {
 
 function test_bad_token {
   jp.trace "test_bad_token"
-  JP_ERROR_COUNT=0
   JP_BUF="nul"
   jp.chomp
   jp.null
-  ok $(( $JP_ERROR_COUNT == 1 )) "parse 'nul' is an error"
+  ok $(( $? == 1 )) "parse 'nul' is an error"
 }
 
 test_good_token

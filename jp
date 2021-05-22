@@ -10,7 +10,7 @@ declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
-  exit 1
+  return 1
 }
 
 function jp.trace {
@@ -58,10 +58,10 @@ function jp.drop_ws {
 
 function jp.expect {
   jp.trace "expect:$1"
-  if [[ $JP_C != $1 ]];then
+  if [[ "$JP_C" != $1 ]];then
     local msg
     printf -v msg "expected %q but found %q" "$1" "$JP_C"
-    jp.error "$msg"
+    jp.error "$msg" || return
   fi
 }
 
@@ -75,20 +75,20 @@ function jp.array {
   jp.chomp
   jp.drop_ws
   if [[ $JP_C != ']' ]];then
-    jp.read_next
+    jp.read_next || return
     eval $array_name+='("$JP_R")'
     while :;do
-      [[ $JP_C == '' ]] && jp.error "unterminated array: didn't find ]"
+      [[ $JP_C != '' ]] || jp.error "unterminated array: didn't find ]" || return
       jp.drop_ws
       if [[ $JP_C == ']' ]];then
         break
       elif [[ $JP_C == ',' ]];then
         jp.chomp
         jp.drop_ws
-        jp.read_next
+        jp.read_next || return
         eval $array_name+='("$JP_R")'
       else
-        jp.error "expected , or ] but found '$JP_C'"
+        jp.error "expected , or ] but found '$JP_C'" || return
       fi
     done
   fi
@@ -106,34 +106,34 @@ function jp.object {
   jp.chomp
   jp.drop_ws
   if [[ $JP_C != '}' ]];then
-    jp.expect '"'
+    jp.expect '"' || return
     jp.string
     local k="$JP_R"
     jp.drop_ws
-    jp.expect ":"
+    jp.expect ":" || return
     jp.chomp
     jp.drop_ws
-    jp.read_next
+    jp.read_next || return
     eval $obj_name['$k']='$JP_R'
     while :;do
-      [[ $JP_C == '' ]] && jp.error "unterminated object: didn't find }"
+      [[ $JP_C != '' ]] || jp.error "unterminated object: didn't find }" return
       jp.drop_ws
       if [[ $JP_C == '}' ]];then
         break
       elif [[ $JP_C == ',' ]];then
         jp.chomp
         jp.drop_ws
-        jp.expect '"'
+        jp.expect '"' || return
         jp.string
         local k="$JP_R"
         jp.drop_ws
-        jp.expect ":"
+        jp.expect ":" || return
         jp.chomp
         jp.drop_ws
-        jp.read_next
+        jp.read_next || return
         eval $obj_name['$k']='$JP_R'
       else
-        jp.error "expected , or } but found $JP_C"
+        jp.error "expected , or } but found $JP_C" || return
       fi
     done
   fi
@@ -148,33 +148,33 @@ function jp.number {
   local seenexp=
   jp.chomp
   if [[ "$num" == '-' ]];then # negative number
-    [[ "$JP_C" != [[:digit:]] ]] && jp.error "minus not followed by digit: $num$JP_C"
+    [[ "$JP_C" == [[:digit:]] ]] || jp.error "minus not followed by digit: $num$JP_C" || return
     if [[ "$JP_C" == '0' ]];then
       num="$num$JP_C"
       jp.chomp
-      [[ $JP_C == [[:digit:]] ]] && jp.error "number starts with zero: $num$JP_C"
+      [[ $JP_C != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
     fi
   elif [[ "$num" == '0' ]];then
-    [[ $JP_C == [[:digit:]] ]] && jp.error "number starts with zero: $num$JP_C"
+    [[ $JP_C != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
   fi
   while :;do
     if [[ "$JP_C" == [[:digit:]] ]];then
       num="$num$JP_C"
     elif [[ $JP_C == . ]];then
       if [[ $seendot ]]; then
-        jp.error "number has too many dots in it: $num$JP_C"
+        jp.error "number has too many dots in it: $num$JP_C" || return
       elif [[ $seenexp ]]; then
-        jp.error "exponents cannot contain dots: $num$JP_C"
+        jp.error "exponents cannot contain dots: $num$JP_C" || return
       else
         num="$num$JP_C"
         seendot=1
         jp.chomp
-        [[ "$JP_C" != [[:digit:]] ]] && jp.error "dot not followed by digit: $num$JP_C"
+        [[ "$JP_C" == [[:digit:]] ]] || jp.error "dot not followed by digit: $num$JP_C" || return
         continue
       fi
     elif [[ $JP_C == [Ee] ]];then
       if [[ $seenexp ]]; then
-        jp.error "number has too many Es in it: $num$JP_C"
+        jp.error "number has too many Es in it: $num$JP_C" || return
       fi
       seenexp=1
       num="$num$JP_C"
@@ -184,7 +184,7 @@ function jp.number {
         jp.chomp
       fi
       if [[ $JP_C != [[:digit:]] ]];then
-        jp.error "a number must follow an exponent or sign: $num$JP_C"
+        jp.error "a number must follow an exponent or sign: $num$JP_C" || return
       fi
       num="$num$JP_C"
     else
@@ -194,19 +194,19 @@ function jp.number {
     jp.chomp
   done
   lastchar=${num:$(( ${#num}-1 )):1}
-  [[ $lastchar == [Ee.+-] ]] && jp.error "invalid number $num ($lastchar)"
+  [[ $lastchar != [Ee.+-] ]] || jp.error "invalid number $num ($lastchar)" || return
 }
 
 function jp.string {
   jp.trace "string"
   local str=
   while :;do
-    [[ $JP_C == '' ]] && jp.error "unterminated string: didn't find \""
+    [[ $JP_C != '' ]] || jp.error "unterminated string: didn't find \"" || return
     jp.chomp
     if [[ "$JP_C" == $'\n' ]];then
-      jp.error "unescaped newline in string"
+      jp.error "unescaped newline in string" || return
     elif [[ "$JP_C" == $'\t' ]];then
-      jp.error "unescaped tab in string"
+      jp.error "unescaped tab in string" || return
     elif [[ $JP_C == $'\\' ]];then # handle escapes
       str="$str$JP_C"
       jp.chomp
@@ -214,12 +214,12 @@ function jp.string {
         local esc=u
         for i in 1 2 3 4;do
           jp.chomp
-          [[ $JP_C == [0-9A-Fa-f] ]] || jp.error "invalid Unicode escape sequence \\$esc$JP_C"
+          [[ $JP_C == [0-9A-Fa-f] ]] || jp.error "invalid Unicode escape sequence \\$esc$JP_C" || return
           esc+=$JP_C
         done
         $JP_C=$esc
       elif [[ $JP_C != [bfnrt\"$'\\'/] ]];then
-        jp.error "invalid escape sequence in string: \\$JP_C"
+        jp.error "invalid escape sequence in string: \\$JP_C" || return
       fi
     elif [[ $JP_C == '"' ]];then
       JP_R="\"$str\"" # prepend with s so we can quote it later
@@ -236,7 +236,7 @@ function jp.null {
     jp.drop 3
     JP_R="null"
   else
-    jp.error "expected 'null' but saw '$JP_C${JP_BUF:0:3}'"
+    jp.error "expected 'null' but saw '$JP_C${JP_BUF:0:3}'" || return
   fi
   jp.chomp
 }
@@ -247,7 +247,7 @@ function jp.bool_true {
     jp.drop 3
     JP_R="true"
   else
-    jp.error "expected 'true' but saw '$JP_C${JP_BUF:0:3}'"
+    jp.error "expected 'true' but saw '$JP_C${JP_BUF:0:3}'" || return
   fi
   jp.chomp
 }
@@ -258,7 +258,7 @@ function jp.bool_false {
     jp.drop 4
     JP_R="false"
   else
-    jp.error "expected 'false' but saw '$JP_C${JP_BUF:0:4}'"
+    jp.error "expected 'false' but saw '$JP_C${JP_BUF:0:4}'" || return
   fi
   jp.chomp
 }
@@ -329,7 +329,7 @@ function jp.to_json {
     local name=${argtype#*\"}
     jp.to_json ${name:0:-1}
   else
-    jp.error "unknown type $argtype"
+    jp.error "unknown type $argtype" || return
   fi
 }
 
@@ -343,7 +343,7 @@ function jp.detect_nullbyte {
   jp.slurp_input
   if [[ -n $JP_IN ]]; then
     printf -v err "received input: %q after null byte" "$JP_IN"
-    jp.error "$err"
+    jp.error "$err" || return
   fi
 }
 
@@ -412,7 +412,7 @@ function jp.run {
   local pretty=$1 before="$2" after="$3" indent="$4"
   JP_OBJ_COUNT=0
   eval "$before"
-  jp.parse_json "$JP_IN"
+  jp.parse_json "$JP_IN" || return
   eval "$after"
   jp.to_json "$JP_R"
   if [[ $pretty ]];then
@@ -431,10 +431,10 @@ function jp.main {
   [[ $t ]] && JP_TRACE=1
   jp.slurp_input
   while :;do
-    jp.run "$p" "$b" "$a" "$i"
+    jp.run "$p" "$b" "$a" "$i" || return
     jp.drop_blanks
     if [[ "$JP_C" ]];then
-      jp.expect $'\n'
+      jp.expect $'\n' || return
       if [[ "$JP_BUF" ]];then
         JP_IN="$JP_BUF"
         continue
@@ -443,7 +443,6 @@ function jp.main {
     break
   done
   jp.detect_nullbyte
-  exit 0
 }
 [[ "$BASH_SOURCE" == "$0" ]] && jp.main "$@"
 # vim: set ft=sh:
