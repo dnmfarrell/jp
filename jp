@@ -449,7 +449,6 @@ function jp.merge {
 
   local count="$JP_STACKSIZE"
   while [[ $count > 0 ]];do
-  echo "count is $count"
   jp.pop
   case "$lefttype" in
     'scalar')
@@ -530,6 +529,25 @@ function jp.values {
     done
   else
     jp.error "values only works on objects, I saw a: '$JP_TYPE'" || return
+  fi
+}
+
+function jp.pairs {
+  jp.pop
+  jp.type "$JP_R"
+  if [[ "$JP_TYPE" == 'assoc-array' ]];then
+    local -n left=$JP_R
+    for k in "${!left[@]}";do
+      (( JP_OBJ_COUNT++ ))
+      local obj_name="JP$JP_OBJ_COUNT"
+      local ref_name="JPR$JP_OBJ_COUNT"
+      eval "declare -gA $obj_name"
+      eval "declare -gn $ref_name=$obj_name"
+      eval $obj_name['$k']='${left[$k]}'
+      jp.push "$ref_name"
+    done
+  else
+    jp.error "pairs only works on objects, I saw a: '$JP_TYPE'" || return
   fi
 }
 
