@@ -1,20 +1,51 @@
 jp
 ==
-jp is a JSON processor: it takes a stream of JSON text, validates it, optionally changes it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
+jp is a JSON processor: it takes a stream of JSON text, parses it, optionally changes it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
 
-As a validator, jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
+
+Parsing
+-------
+jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
 
 
 Transforming
 ------------
-...
+N.B. transformations are a work in progresss; more functions to come!
+
+jp parses the incoming JSON stream into a data structure and places it on a stack. It then reads args for any transformation instructions.
+
+    - json: any json arg will be parsed and pushed onto the stack
+    - pop: pops the top entry off the stack, deleting it
+    - swap: swaps the top two entries of the stack with each other
+    - merge: combines all values on the stack into a single structure
+    - keys, values, pairs: pop an object off the stack and push one key/values/object pair for each member of the object
+
+    # merge two objects
+    echo '{"foo": 123}' | jp '{"bar": 456}' jp.merge
+    {
+      "foo": 123,
+      "bar": 456
+    }
+
+    # print an object's keys
+    echo '{"foo": 123, "bar": 456}' | jp jp.keys
+    "foo"
+    "bar"
+
+    # convert an object's keys into an array
+    echo '{"foo": 123, "bar": 456}' | jp jp.keys '[]' jp.merge
+    [
+      "foo",
+      "bar"
+    ]
+
 
 Printing
 --------
-By default jp pretty prints JSON when printing to the terminal. You can override this behavior with the PRETTY variable:
+jp prints whatever data is left on the stack after it has processed args. By default jp pretty prints JSON when printing to the terminal. You can override this behavior with the  -p and -P options:
 
     # pretty but piped
-    echo [1,2,3] | jp -b PRETTY=1 | head
+    echo '[1,2,3]' | jp -p | head
     [
       1,
       2,
@@ -22,10 +53,10 @@ By default jp pretty prints JSON when printing to the terminal. You can override
     ]
 
     # terse but in the terminal
-    echo [1,2,3] | jp -b PRETTY=
+    echo [1,2,3] | jp -P
     [1,2,3]
 
-The INDENT variable is used to indent nested data when pretty printing. It is set to 2 spaces, but you can override it:
+The default indent for pretty printing is two spaces but you can override it with the -i option:
 
     echo '{"foo":[1,2,3]}' | jp
     {
@@ -37,7 +68,7 @@ The INDENT variable is used to indent nested data when pretty printing. It is se
     }
 
     # tab indent - quoting to protect whitespace a recurring theme in shell code
-    echo '{"foo":[1,2,3]}' | jp -b 'INDENT="     "'
+    echo '{"foo":[1,2,3]}' | jp -i '     '
     {
             "foo": [
                     1,
@@ -46,16 +77,19 @@ The INDENT variable is used to indent nested data when pretty printing. It is se
             ]
     }
 
-That `-b` argument stands for "before parsing" and is a hook for users to pass in arbitrary code to be eval'd by jp before it parses its input.
+Use jp as a library
+-------------------
+All of jp's functions and global variables are namespaced under jp./JP. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
+
 
 Shell Native
 ------------
 jp is a shell native program, that is, it is written in the same programming language used to program the shell. This has some benefits:
 
-1. Users of the program do not need to learn another DSL for programming jp. For example to make jp run under trace mode: `jp -b TRACE=1`
-2. Because jp runs in the shell, I did not have to anticipate all the ways in which users may which to change the program behavior, and build APIs for them, unlike if it was written in C, for example. Using the before or after hooks, users can pass in code which is eval'd.
-3. Being written in shell code in a single file, all users need to modify it is bash and a text editor.
-4. Learning to program jp means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
+1. Users of the program do not need to learn another DSL for transforming JSON. Args are just function names and json data,
+2. Being written in shell code in a single file, all users need to modify jp is a text editor.
+3. Learning to program jp means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
+4. jp can be used as a program, and as a library to provide behavior to other shell scripts
 
 Being shell native has some downsides too:
 1. Shell code's limited support for programming concepts like data structures, return values and so on make it difficult to create apps in
@@ -65,6 +99,7 @@ Being shell native has some downsides too:
 
 All that's needed to solve these issues is a better shell programming language which is really fast and used everywhere.
 
+
 Other Shell JSON Parsers
 ------------------------
 These parse a JSON stream of text, and output a linear tree of paths which can be grepped:
@@ -72,6 +107,7 @@ These parse a JSON stream of text, and output a linear tree of paths which can b
 * [JSON.bash](https://github.com/ingydotnet/git-hub/tree/master/ext/json-bash) is a source-able bash library
 
 [TickTick](https://github.com/kristopolous/TickTick) is a Bash library which provides inline JSON parsing and searching.
+
 
 License
 -------
