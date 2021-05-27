@@ -432,6 +432,11 @@ function jp.push {
   return 0
 }
 
+function jp.dup {
+  jp.trace "dup"
+  jp.push "${JP_STACK[$(( JP_STACKSIZE-1 ))]}"
+}
+
 function jp.swap {
   jp.pop
   local temp="$JP_R"

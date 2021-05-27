@@ -14,9 +14,10 @@ N.B. transformations are a work in progresss; more functions to come!
 
 jp parses the incoming JSON stream into a data structure and places it on a stack. It then reads args for any transformation instructions.
 
-    - json: any json arg will be parsed and pushed onto the stack
+    - push: any json literal will be parsed and pushed onto the stack, e.g. `"foo"`
     - pop: pops the top entry off the stack, deleting it
     - swap: swaps the top two entries of the stack with each other
+    - dup: copies the vlaue on the top of the stack making it the top two entries
     - merge: combines all values on the stack into a single structure
     - keys, values, pairs: pop an object off the stack and push one key/values/object pair for each member of the object
 
@@ -57,15 +58,6 @@ jp prints whatever data is left on the stack after it has processed args. By def
     [1,2,3]
 
 The default indent for pretty printing is two spaces but you can override it with the -i option:
-
-    echo '{"foo":[1,2,3]}' | jp
-    {
-      "foo": [
-        1,
-        2,
-        3
-      ]
-    }
 
     # tab indent - quoting to protect whitespace a recurring theme in shell code
     echo '{"foo":[1,2,3]}' | jp -i '     '
