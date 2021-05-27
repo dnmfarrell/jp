@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY
+declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -290,17 +290,20 @@ function jp.parse_json {
 
 function jp.type {
   jp.trace "type:$1"
-  JP_TYPEDEC=$(declare -p "$1" 2> /dev/null)
-  if (( $? > 0 ));then
+  local typedec=
+  declare -p "$1" > /dev/fd/3 2> /dev/null
+  IFS= read -u 3 typedec
+
+  if [[ -z "$typedec" ]];then
     JP_TYPE="scalar"
-  elif [[ "$JP_TYPEDEC" == "declare --"* ]];then
+  elif [[ "$typedec" == "declare --"* ]];then
     JP_TYPE="indirect-ref"
-  elif [[ "$JP_TYPEDEC" == "declare -a"* ]];then
+  elif [[ "$typedec" == "declare -a"* ]];then
     JP_TYPE="array"
-  elif [[ "$JP_TYPEDEC" == "declare -A"* ]];then
+  elif [[ "$typedec" == "declare -A"* ]];then
     JP_TYPE="assoc-array"
-  elif [[ "$JP_TYPEDEC" == "declare -n"* ]];then
-    local name=${JP_TYPEDEC#*\"}
+  elif [[ "$typedec" == "declare -n"* ]];then
+    local name=${typedec#*\"}
     jp.type "${name:0:-1}"
   else
     JP_TYPE=
@@ -561,6 +564,12 @@ function jp.run {
   JP_OBJ_COUNT=0
   jp.parse_json "$JP_IN" || return
   jp.push "$JP_R"
+
+  # enable jp.type to write and read from /dev/fd/3 to avoid using a subshell
+  if [[ -e /dev/fd/3 ]];then
+    [[ ! -w /dev/fd/3 ]] && chmod u+w /dev/fd/3 # only needed in bash 5+
+  fi
+
   for arg in "$@";do
     jp.parse_json "$arg" 2>/dev/null
     if [[ $? > 0 ]];then
@@ -601,7 +610,7 @@ function jp.main {
   done
   jp.slurp_input
   while :;do
-    jp.run "$@" || return
+    jp.run "$@" 3< <(:) || return
     jp.drop_blanks
     if [[ "$JP_C" ]];then
       jp.expect $'\n' || return
