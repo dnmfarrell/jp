@@ -423,6 +423,7 @@ function jp.uglyprint {
 }
 
 function jp.pop {
+  jp.trace "pop"
   (( JP_STACKSIZE-- ))
   JP_R="${JP_STACK[$JP_STACKSIZE]}"
   JP_STACK[$JP_STACKSIZE]=
@@ -441,6 +442,7 @@ function jp.dup {
 }
 
 function jp.swap {
+  jp.trace "swap"
   jp.pop
   local temp="$JP_R"
   jp.pop
@@ -515,6 +517,7 @@ function jp.merge {
 }
 
 function jp.keys {
+  jp.trace "keys"
   jp.pop
   jp.type "$JP_R"
   if [[ "$JP_TYPE" == 'assoc-array' ]];then
@@ -527,7 +530,23 @@ function jp.keys {
   fi
 }
 
+function jp.k {
+  jp.trace "k"
+  jp.pop
+  local key="$JP_R"
+  jp.pop
+  jp.type "$JP_R"
+  if [[ "$JP_TYPE" == "assoc-array" ]];then
+    local -n object=$JP_R
+    [[ -n "${object[$key]}" ]] && jp.push "${object[$key]}"
+  else
+    jp.error "only objects have keys" || return
+  fi
+  return 0
+}
+
 function jp.values {
+  jp.trace "values"
   jp.pop
   jp.type "$JP_R"
   if [[ "$JP_TYPE" == 'assoc-array' ]];then
@@ -541,6 +560,7 @@ function jp.values {
 }
 
 function jp.pairs {
+  jp.trace "pairs"
   jp.pop
   jp.type "$JP_R"
   if [[ "$JP_TYPE" == 'assoc-array' ]];then
@@ -557,6 +577,21 @@ function jp.pairs {
   else
     jp.error "pairs only works on objects, I saw a: '$JP_TYPE'" || return
   fi
+}
+
+function jp.i {
+  jp.trace "i"
+  jp.pop
+  local i="$JP_R"
+  jp.pop
+  jp.type "$JP_R"
+  if [[ "$JP_TYPE" == "array" ]];then
+    local -n array=$JP_R
+    [[ "${#array[@]}" > "$i" ]] && jp.push "${array[$i]}"
+  else
+    jp.error "can only index arrays" || return
+  fi
+  return 0
 }
 
 function jp.run {

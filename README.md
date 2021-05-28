@@ -20,6 +20,8 @@ jp parses the incoming JSON stream into a data structure and places it on a stac
     - dup: copies the vlaue on the top of the stack making it the top two entries
     - merge: combines all values on the stack into a single structure
     - keys, values, pairs: pop an object off the stack and push one key/values/object pair for each member of the object
+    - k: lookup the value of a given key
+    - i: lookup the value of an array index
 
     # merge two objects
     echo '{"foo": 123}' | jp '{"bar": 456}' jp.merge
