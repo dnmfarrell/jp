@@ -6,7 +6,6 @@ jp is a JSON processor: it takes a stream of JSON text, parses it, optionally ch
 Dependencies
 ------------
 * Bash 4.3 or higher (namerefs)
-* Linux (uses /dev/fd/3 as an output buffer)
 
 
 Parsing
@@ -101,7 +100,6 @@ Being shell native has some downsides too:
 2. Bash 4.3 or higher is needed to run jp because it uses namerefs.
 3. jp is not as fast as [jq](https://stedolan.github.io/jq/)!
 4. Users have to be familiar with shell programming to get the most out of the program
-5. Because it uses file descriptors and the pipe buffer, it's Linux only.
 
 All that's needed to solve these issues is a better shell programming language which is really fast, portable and used everywhere.
 

@@ -279,8 +279,13 @@ function jp.parse_json {
 
 function jp.type {
   local typedec=
-  declare -p "$1" > /dev/fd/3 2> /dev/null
-  IFS= read -u 3 typedec
+
+  if [[ -w /dev/fd/3 ]];then
+    declare -p "$1" > /dev/fd/3 2> /dev/null
+    IFS= read -u 3 typedec
+  else # degrade to subshell Zzz
+    typedec=$(declare -p "$1" 2> /dev/null)
+  fi
 
   if [[ -z "$typedec" ]];then
     JP_TYPE="scalar"
