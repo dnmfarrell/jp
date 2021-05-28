@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_TRACE JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE
+declare JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -14,12 +14,14 @@ function jp.error {
 }
 
 function jp.trace {
-  [[ $JP_TRACE ]] && printf "%q\n" "$1" >&2
+  # ignore non-jp functions and duplicate DEBUG signals
+  if [[ "$1" == "jp."* ]] && [[ "$1" != "${FUNCNAME[1]}" ]]; then
+    printf "%s\t%s\n" "$EPOCHREALTIME" "$1" >&2
+  fi
 }
 
 function jp.chomp {
   JP_C="${JP_BUF:0:1}"
-  jp.trace "chomp:$JP_C"
   jp.drop 1
   if [[ $JP_C == [$'\n\v\f\r'] ]];then
     (( JP_COL=1 ))
@@ -30,12 +32,10 @@ function jp.chomp {
 }
 
 function jp.drop {
-  jp.trace "drop"
   JP_BUF="${JP_BUF:$1}"
 }
 
 function jp.drop_blanks {
-  jp.trace "drop_blanks"
   while :;do
     if [[ "$JP_C" == [[:blank:]] ]];then
       jp.chomp
@@ -46,7 +46,6 @@ function jp.drop_blanks {
 }
 
 function jp.drop_ws {
-  jp.trace "drop_ws"
   while :;do
     if [[ "$JP_C" == [[:blank:]$'\n\r'] ]];then
       jp.chomp
@@ -57,7 +56,6 @@ function jp.drop_ws {
 }
 
 function jp.expect {
-  jp.trace "expect:$1"
   if [[ "$JP_C" != $1 ]];then
     local msg
     printf -v msg "expected %q but found %q" "$1" "$JP_C"
@@ -66,7 +64,6 @@ function jp.expect {
 }
 
 function jp.array {
-  jp.trace "array"
   (( JP_OBJ_COUNT++ ))
   local array_name="JP$JP_OBJ_COUNT"
   local ref_name="JPR$JP_OBJ_COUNT"
@@ -97,7 +94,6 @@ function jp.array {
 }
 
 function jp.object {
-  jp.trace "object"
   (( JP_OBJ_COUNT++ ))
   local obj_name="JP$JP_OBJ_COUNT"
   local ref_name="JPR$JP_OBJ_COUNT"
@@ -142,7 +138,6 @@ function jp.object {
 }
 
 function jp.number {
-  jp.trace "number"
   local num="$JP_C"
   local seendot=
   local seenexp=
@@ -198,7 +193,6 @@ function jp.number {
 }
 
 function jp.string {
-  jp.trace "string"
   local str=
   while :;do
     [[ $JP_C != '' ]] || jp.error "unterminated string: didn't find \"" || return
@@ -231,7 +225,6 @@ function jp.string {
 }
 
 function jp.null {
-  jp.trace "null"
   if [[ ${JP_BUF:0:3} == ull ]];then
     jp.drop 3
     JP_R="null"
@@ -242,7 +235,6 @@ function jp.null {
 }
 
 function jp.bool_true {
-  jp.trace "bool_true"
   if [[ ${JP_BUF:0:3} == rue ]];then
     jp.drop 3
     JP_R="true"
@@ -253,7 +245,6 @@ function jp.bool_true {
 }
 
 function jp.bool_false {
-  jp.trace "bool_false"
   if [[ ${JP_BUF:0:4} == alse ]];then
     jp.drop 4
     JP_R="false"
@@ -264,7 +255,6 @@ function jp.bool_false {
 }
 
 function jp.read_next {
-  jp.trace "read_next:$JP_C"
   case "$JP_C" in
     [[:digit:]-]) jp.number;;
     '"') jp.string;;
@@ -278,7 +268,6 @@ function jp.read_next {
 }
 
 function jp.parse_json {
-  jp.trace "parse_json:$1"
   JP_C=
   JP_BUF="$1"
   JP_COL=1
@@ -289,7 +278,6 @@ function jp.parse_json {
 }
 
 function jp.type {
-  jp.trace "type:$1"
   local typedec=
   declare -p "$1" > /dev/fd/3 2> /dev/null
   IFS= read -u 3 typedec
@@ -311,9 +299,7 @@ function jp.type {
 }
 
 function jp.to_json {
-  jp.trace "to_json:$1"
   jp.type "$1"
-  jp.trace "$JP_TYPE"
   local arg="$1"
   case "$JP_TYPE" in
     'scalar') JP_OUT+=("$arg");;
@@ -349,12 +335,10 @@ function jp.to_json {
 }
 
 function jp.slurp_input {
-  jp.trace "slurp_input"
   IFS= read -rs -d '' JP_IN
 }
 
 function jp.detect_nullbyte {
-  jp.trace "detect_nullbyte"
   jp.slurp_input
   if [[ -n $JP_IN ]]; then
     printf -v err "received input: %q after null byte" "$JP_IN"
@@ -363,7 +347,6 @@ function jp.detect_nullbyte {
 }
 
 function jp.prettyprint {
-  jp.trace "prettyprint"
   local indentchars="$1"
   local i=0
   local len=${#JP_OUT[@]}
@@ -411,7 +394,6 @@ function jp.prettyprint {
 }
 
 function jp.uglyprint {
-  jp.trace "uglyprint"
   local i=0
   local len=${#JP_OUT[@]}
   while (( i < len  ));do
@@ -423,26 +405,22 @@ function jp.uglyprint {
 }
 
 function jp.pop {
-  jp.trace "pop"
   (( JP_STACKSIZE-- ))
   JP_R="${JP_STACK[$JP_STACKSIZE]}"
   JP_STACK[$JP_STACKSIZE]=
 }
 
 function jp.push {
-  jp.trace "push"
   JP_STACK[$JP_STACKSIZE]="$1"
   (( JP_STACKSIZE++ ))
   return 0
 }
 
 function jp.dup {
-  jp.trace "dup"
   jp.push "${JP_STACK[$(( JP_STACKSIZE-1 ))]}"
 }
 
 function jp.swap {
-  jp.trace "swap"
   jp.pop
   local temp="$JP_R"
   jp.pop
@@ -451,7 +429,6 @@ function jp.swap {
 }
 
 function jp.merge {
-  jp.trace "merge"
   jp.pop
   local left="$JP_R"
   jp.type "$left"
@@ -517,7 +494,6 @@ function jp.merge {
 }
 
 function jp.keys {
-  jp.trace "keys"
   jp.pop
   jp.type "$JP_R"
   if [[ "$JP_TYPE" == 'assoc-array' ]];then
@@ -531,7 +507,6 @@ function jp.keys {
 }
 
 function jp.k {
-  jp.trace "k"
   jp.pop
   local key="$JP_R"
   jp.pop
@@ -546,7 +521,6 @@ function jp.k {
 }
 
 function jp.values {
-  jp.trace "values"
   jp.pop
   jp.type "$JP_R"
   if [[ "$JP_TYPE" == 'assoc-array' ]];then
@@ -560,7 +534,6 @@ function jp.values {
 }
 
 function jp.pairs {
-  jp.trace "pairs"
   jp.pop
   jp.type "$JP_R"
   if [[ "$JP_TYPE" == 'assoc-array' ]];then
@@ -580,7 +553,6 @@ function jp.pairs {
 }
 
 function jp.i {
-  jp.trace "i"
   jp.pop
   local i="$JP_R"
   jp.pop
@@ -595,7 +567,6 @@ function jp.i {
 }
 
 function jp.run {
-  jp.trace "run"
   JP_OBJ_COUNT=0
   jp.parse_json "$JP_IN" || return
   jp.push "$JP_R"
@@ -632,13 +603,12 @@ function jp.run {
 }
 
 function jp.main {
-  jp.trace "main"
   [[ -t 1 ]] && JP_PRETTY=1 # default to pretty for a tty
   while getopts ":pPti:" opt; do
     case "$opt" in
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
-      't') JP_TRACE=1;;
+      't') trap '(jp.trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
       'i') JP_INDENT="$OPTARG";;
     esac
     shift $((OPTIND-1))
