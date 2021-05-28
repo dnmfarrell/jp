@@ -10,17 +10,18 @@ jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) p
 
 Transforming
 ------------
-N.B. transformations are a work in progresss; more functions to come!
+N.B. transformations are a work in progresss; I add new features as I need them. Feel free to add your own, they're easy to add and there is plenty of prior art to copy from.
 
 jp parses the incoming JSON stream into a data structure and places it on a stack. It then reads args for any transformation instructions.
 
-    - push: any json literal will be parsed and pushed onto the stack, e.g. `"foo"`
+    - push: any json literal will be parsed and pushed onto the stack, e.g. "foo"
     - pop: pops the top entry off the stack, deleting it
     - swap: swaps the top two entries of the stack with each other
     - dup: copies the vlaue on the top of the stack making it the top two entries
     - merge: combines all values on the stack into a single structure
-    - keys, values, pairs: pop an object off the stack and push one key/values/object pair for each member of the object
-    - k: lookup the value of a given key
+    - keys, values: pop an object off the stack and push one key/valuefor each member
+    - pairs: pop an object off the stack and push an object pair for each member
+    - k: lookup the value of a given key in an object
     - i: lookup the value of an array index
 
     # merge two objects
@@ -41,6 +42,10 @@ jp parses the incoming JSON stream into a data structure and places it on a stac
       "foo",
       "bar"
     ]
+
+    # extract a value from an object
+    echo '{"user":"dnmfarrell","email":"foo@example.com"}' | jp '"email"' jp.k
+    "foo@example.com"
 
 
 Printing
@@ -80,18 +85,26 @@ Shell Native
 ------------
 jp is a shell native program, that is, it is written in the same programming language used to program the shell. This has some benefits:
 
-1. Users of the program do not need to learn another DSL for transforming JSON. Args are just function names and json data,
-2. Being written in shell code in a single file, all users need to modify jp is a text editor.
+1. Users of the program do not need to learn another DSL for transforming JSON. Args are just function names and json data.
+2. Being written in shell code in a single file, all users need to modify jp is a text editor. All they need to run it is Bash 4.3 or higher.
 3. Learning to program jp means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
-4. jp can be used as a program, and as a library to provide behavior to other shell scripts
+4. jp can be used as a program, and as a library to provide behavior to other shell scripts.
 
 Being shell native has some downsides too:
-1. Shell code's limited support for programming concepts like data structures, return values and so on make it difficult to create apps in
-2. Bash 4.3 or higher is needed to run jp because it uses namerefs
+1. Shell code's limited support for programming concepts like data structures, return values and so on make it difficult to create apps in.
+2. Bash 4.3 or higher is needed to run jp because it uses namerefs.
 3. jp is not as fast as [jq](https://stedolan.github.io/jq/)!
 4. Users have to be familiar with shell programming to get the most out of the program
+5. Because it uses file descriptors and the pipe buffer, it's Linux only.
 
-All that's needed to solve these issues is a better shell programming language which is really fast and used everywhere.
+All that's needed to solve these issues is a better shell programming language which is really fast, portable and used everywhere.
+
+
+Improvements
+------------
+* jp is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will glady recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
+* jp creates a data structure which mirrors its input. This ties it's representation to the behavior of Bash data structures; for example jp stores objects as associate arrays: this means it cannot have duplicate keys, and the order of keys is not preserved. It might be better to store objects as tagged arrays instead.
+* jp needs more tests!
 
 
 Other Shell JSON Parsers
