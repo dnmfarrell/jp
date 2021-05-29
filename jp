@@ -286,7 +286,11 @@ function jp.read_next {
 
 function jp.parse_json {
   JP_C=
-  readarray -t JP_BUF < <(fold -w1 <<< "$1")
+  if [[ $# > 0 ]];then
+    readarray -t JP_BUF < <(fold -w1 <<< "$1")
+  else
+    readarray -t JP_BUF < <(fold -w1)
+  fi
   JP_IDX=0
   JP_COL=1
   JP_LINE=1
@@ -355,18 +359,6 @@ function jp.to_json {
       ;;
     *) jp.error "unknown type" || return
   esac
-}
-
-function jp.slurp_input {
-  IFS= read -rs -d '' JP_IN
-}
-
-function jp.detect_nullbyte {
-  jp.slurp_input
-  if [[ -n $JP_IN ]]; then
-    printf -v err "received input: %q after null byte" "$JP_IN"
-    jp.error "$err" || return
-  fi
 }
 
 function jp.prettyprint {
@@ -591,7 +583,7 @@ function jp.i {
 
 function jp.run {
   JP_OBJ_COUNT=0
-  jp.parse_json "$JP_IN" || return
+  jp.parse_json || return
   [[ $JP_SILENT ]] && return 0
   jp.push "$JP_R"
 
@@ -636,7 +628,6 @@ function jp.main {
     esac
     shift $((OPTIND-1))
   done
-  jp.slurp_input
   while :;do
     jp.run "$@" 3< <(:) || return
     jp.drop_blanks
@@ -649,7 +640,6 @@ function jp.main {
     fi
     break
   done
-  jp.detect_nullbyte
 }
 [[ "$BASH_SOURCE" == "$0" ]] && jp.main "$@"
 # vim: set ft=sh:
