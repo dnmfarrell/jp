@@ -6,11 +6,12 @@ jp is a JSON processor: it takes a stream of JSON text, parses it, optionally ch
 Dependencies
 ------------
 * Bash 4.3 or higher (namerefs)
+* GNU coreutils `fold`
 
 
 Parsing
 -------
-jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
+jp passes 316/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. One failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
 
 
 Transforming

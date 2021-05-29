@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT
+declare JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT JP_IDX
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -21,18 +21,14 @@ function jp.trace {
 }
 
 function jp.chomp {
-  JP_C="${JP_BUF:0:1}"
-  jp.drop 1
-  if [[ $JP_C == [$'\n\v\f\r'] ]];then
+  JP_C="${JP_BUF[$JP_IDX]}"
+  (( JP_IDX++ ))
+  if [[ "$JP_C" == [$'\n\v\f\r'] ]];then
     (( JP_COL=1 ))
     (( JP_LINE++ ))
   else
     (( JP_COL++ ))
   fi
-}
-
-function jp.drop {
-  JP_BUF="${JP_BUF:$1}"
 }
 
 function jp.drop_blanks {
@@ -56,7 +52,7 @@ function jp.drop_ws {
 }
 
 function jp.expect {
-  if [[ "$JP_C" != $1 ]];then
+  if [[ "$JP_C" != "$1" ]];then
     local msg
     printf -v msg "expected %q but found %q" "$1" "$JP_C"
     jp.error "$msg" || return
@@ -71,15 +67,15 @@ function jp.array {
   eval "declare -gn $ref_name=$array_name"
   jp.chomp
   jp.drop_ws
-  if [[ $JP_C != ']' ]];then
+  if [[ "$JP_C" != ']' ]];then
     jp.read_next || return
     eval $array_name+='("$JP_R")'
     while :;do
-      [[ $JP_C != '' ]] || jp.error "unterminated array: didn't find ]" || return
+      [[ "$JP_C" != '' ]] || jp.error "unterminated array: didn't find ]" || return
       jp.drop_ws
-      if [[ $JP_C == ']' ]];then
+      if [[ "$JP_C" == ']' ]];then
         break
-      elif [[ $JP_C == ',' ]];then
+      elif [[ "$JP_C" == ',' ]];then
         jp.chomp
         jp.drop_ws
         jp.read_next || return
@@ -101,7 +97,7 @@ function jp.object {
   eval "declare -gn $ref_name=$obj_name"
   jp.chomp
   jp.drop_ws
-  if [[ $JP_C != '}' ]];then
+  if [[ "$JP_C" != '}' ]];then
     jp.expect '"' || return
     jp.string
     local k="$JP_R"
@@ -112,11 +108,11 @@ function jp.object {
     jp.read_next || return
     eval $obj_name['$k']='$JP_R'
     while :;do
-      [[ $JP_C != '' ]] || jp.error "unterminated object: didn't find }" return
+      [[ "$JP_C" != '' ]] || jp.error "unterminated object: didn't find }" return
       jp.drop_ws
-      if [[ $JP_C == '}' ]];then
+      if [[ "$JP_C" == '}' ]];then
         break
-      elif [[ $JP_C == ',' ]];then
+      elif [[ "$JP_C" == ',' ]];then
         jp.chomp
         jp.drop_ws
         jp.expect '"' || return
@@ -147,7 +143,7 @@ function jp.number {
     if [[ "$JP_C" == '0' ]];then
       num="$num$JP_C"
       jp.chomp
-      [[ $JP_C != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
+      [[ "$JP_C" != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
     fi
   elif [[ "$num" == '0' ]];then
     [[ $JP_C != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
@@ -155,10 +151,10 @@ function jp.number {
   while :;do
     if [[ "$JP_C" == [[:digit:]] ]];then
       num="$num$JP_C"
-    elif [[ $JP_C == . ]];then
-      if [[ $seendot ]]; then
+    elif [[ "$JP_C" == . ]];then
+      if [[ "$seendot" ]]; then
         jp.error "number has too many dots in it: $num$JP_C" || return
-      elif [[ $seenexp ]]; then
+      elif [[ "$seenexp" ]]; then
         jp.error "exponents cannot contain dots: $num$JP_C" || return
       else
         num="$num$JP_C"
@@ -183,39 +179,39 @@ function jp.number {
       fi
       num="$num$JP_C"
     else
-      JP_R=$num
+      JP_R="$num"
       break
     fi
     jp.chomp
   done
   lastchar=${num:$(( ${#num}-1 )):1}
-  [[ $lastchar != [Ee.+-] ]] || jp.error "invalid number $num ($lastchar)" || return
+  [[ "$lastchar" != [Ee.+-] ]] || jp.error "invalid number $num ($lastchar)" || return
 }
 
 function jp.string {
   local str=
   while :;do
-    [[ $JP_C != '' ]] || jp.error "unterminated string: didn't find \"" || return
+    [[ "$JP_C" != '' ]] || jp.error "unterminated string: didn't find \"" || return
     jp.chomp
     if [[ "$JP_C" == $'\n' ]];then
       jp.error "unescaped newline in string" || return
     elif [[ "$JP_C" == $'\t' ]];then
       jp.error "unescaped tab in string" || return
-    elif [[ $JP_C == $'\\' ]];then # handle escapes
+    elif [[ "$JP_C" == $'\\' ]];then # handle escapes
       str="$str$JP_C"
       jp.chomp
-      if [[ $JP_C == u ]];then # unicode
+      if [[ "$JP_C" == u ]];then # unicode
         local esc=u
         for i in 1 2 3 4;do
           jp.chomp
-          [[ $JP_C == [0-9A-Fa-f] ]] || jp.error "invalid Unicode escape sequence \\$esc$JP_C" || return
-          esc+=$JP_C
+          [[ "$JP_C" == [0-9A-Fa-f] ]] || jp.error "invalid Unicode escape sequence \\$esc$JP_C" || return
+          esc+="$JP_C"
         done
-        $JP_C=$esc
-      elif [[ $JP_C != [bfnrt\"$'\\'/] ]];then
+        $JP_C="$esc"
+      elif [[ "$JP_C" != [bfnrt\"$'\\'/] ]];then
         jp.error "invalid escape sequence in string: \\$JP_C" || return
       fi
-    elif [[ $JP_C == '"' ]];then
+    elif [[ "$JP_C" == '"' ]];then
       JP_R="\"$str\"" # prepend with s so we can quote it later
       break
     fi
@@ -225,33 +221,54 @@ function jp.string {
 }
 
 function jp.null {
-  if [[ ${JP_BUF:0:3} == ull ]];then
-    jp.drop 3
-    JP_R="null"
-  else
-    jp.error "expected 'null' but saw '$JP_C${JP_BUF:0:3}'" || return
-  fi
   jp.chomp
+  if [[ "$JP_C" == "u" ]];then
+    jp.chomp
+    if [[ "$JP_C" == "l" ]];then
+      jp.chomp
+      if [[ "$JP_C" == "l" ]];then
+        JP_R="null"
+        jp.chomp
+        return
+      fi
+    fi
+  fi
+  jp.error "expected 'null' but saw '$JP_C'" || return
 }
 
 function jp.bool_true {
-  if [[ ${JP_BUF:0:3} == rue ]];then
-    jp.drop 3
-    JP_R="true"
-  else
-    jp.error "expected 'true' but saw '$JP_C${JP_BUF:0:3}'" || return
-  fi
   jp.chomp
+  if [[ "$JP_C" == "r" ]];then
+    jp.chomp
+    if [[ "$JP_C" == "u" ]];then
+      jp.chomp
+      if [[ "$JP_C" == "e" ]];then
+        JP_R="true"
+        jp.chomp
+        return
+      fi
+    fi
+  fi
+  jp.error "expected 'true' but saw '$JP_C'" || return
 }
 
 function jp.bool_false {
-  if [[ ${JP_BUF:0:4} == alse ]];then
-    jp.drop 4
-    JP_R="false"
-  else
-    jp.error "expected 'false' but saw '$JP_C${JP_BUF:0:4}'" || return
-  fi
   jp.chomp
+  if [[ "$JP_C" == "a" ]];then
+    jp.chomp
+    if [[ "$JP_C" == "l" ]];then
+      jp.chomp
+      if [[ "$JP_C" == "s" ]];then
+        jp.chomp
+        if [[ "$JP_C" == "e" ]];then
+          JP_R="false"
+          jp.chomp
+          return
+        fi
+      fi
+    fi
+  fi
+  jp.error "expected 'false' but saw '$JP_C'" || return
 }
 
 function jp.read_next {
@@ -269,7 +286,8 @@ function jp.read_next {
 
 function jp.parse_json {
   JP_C=
-  JP_BUF="$1"
+  readarray -t JP_BUF < <(fold -w1 <<< "$1")
+  JP_IDX=0
   JP_COL=1
   JP_LINE=1
   jp.chomp
@@ -585,8 +603,6 @@ function jp.run {
   for arg in "$@";do
     jp.parse_json "$arg" 2>/dev/null
     if [[ $? > 0 ]];then
-      JP_C=
-      JP_BUF=
       eval "$arg"
       if [[ $? > 0 ]];then
         jp.error "filter failed to process '$arg'"
@@ -626,8 +642,8 @@ function jp.main {
     jp.drop_blanks
     if [[ "$JP_C" ]];then
       jp.expect $'\n' || return
-      if [[ "$JP_BUF" ]];then
-        JP_IN="$JP_BUF"
+      if [[ $(( JP_IDX+1 )) < "${#JP_BUF[@]}" ]];then
+        JP_IN="${JP_IN:$JP_IDX}"
         continue
       fi
     fi
