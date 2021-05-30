@@ -623,10 +623,11 @@ function jp.main {
     shift $((OPTIND-1))
   done
   while :;do
+    local start_line="$JP_LINE"
     jp.run "$@" 3< <(:) || return
     jp.drop_ws
     if [[ "$JP_C" ]];then # there is more to parse
-      (( JP_COL == 1 )) || jp.error "expected '\n' but found $JP_C" || return
+      (( JP_LINE > start_line )) || jp.error "expected '\n' but found $JP_C" || return
       continue
     fi
     break
