@@ -17,8 +17,6 @@ Transforming
 ------------
 N.B. transformations are a work in progress; I add new features as I need them. Feel free to add your own, they're easy to add and there is plenty of prior art to copy from.
 
-**Currently not working**
-
 jp parses the incoming JSON stream into a data structure and places it on a stack. It then reads args for any transformation instructions.
 
     - push: any json literal will be parsed and pushed onto the stack, e.g. "foo"

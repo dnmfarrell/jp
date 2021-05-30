@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE=0 JP_COL=0 JP_BUF JP_C JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT
+declare JP_LINE=0 JP_COL=0 JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -24,6 +24,9 @@ function jp.chomp {
   if (( JP_COL < "${#JP_BUF[$JP_LINE]}" ));then
     JP_C="${JP_BUF[$JP_LINE]:$JP_COL:1}"
     (( JP_COL++ ))
+  elif (( JP_COL == "${#JP_BUF[$JP_LINE]}" ));then
+    JP_C=$'\n'
+    (( JP_COL++ ))
   else
     (( JP_LINE++ ))
     JP_C="${JP_BUF[$JP_LINE]:0:1}"
@@ -33,7 +36,7 @@ function jp.chomp {
 
 function jp.drop_ws {
   while :;do
-    if [[ "$JP_C" == [[:blank:]] ]];then
+    if [[ "$JP_C" == [[:blank:]$'\n\r'] ]];then
       jp.chomp
     else
       break
@@ -275,16 +278,13 @@ function jp.read_next {
 }
 
 function jp.parse_json {
-  if [[ ! "$JP_BUF" ]];then
-    if [[ $# > 0 ]];then
-      IFS=$'\n' read -rd '' -a JP_BUF <<< "$1"
-    else
-      IFS=$'\n' read -rd '' -a JP_BUF
-    fi
-    jp.chomp
-  fi
+  jp.chomp
   jp.drop_ws
-  jp.read_next
+  jp.read_next || return
+  while [[ "$JP_C" == [[:blank:]] ]];do
+    jp.chomp
+  done
+  [[ "$JP_C" == $'\n' ]] || jp.error "expected '\n' but found $JP_C" || return
 }
 
 function jp.type {
@@ -293,7 +293,7 @@ function jp.type {
   if [[ -w /dev/fd/3 ]];then
     declare -p "$1" > /dev/fd/3 2> /dev/null
     IFS= read -u 3 typedec
-  else # degrade to subshell Zzz
+  else # degrade to subshell Zzz for non-Linux
     typedec=$(declare -p "$1" 2> /dev/null)
   fi
 
@@ -551,7 +551,7 @@ function jp.pairs {
       (( JP_OBJ_COUNT++ ))
       local obj_name="JP$JP_OBJ_COUNT"
       local ref_name="JPR$JP_OBJ_COUNT"
-      eval "declare -gA $obj_name"
+      eval "declare -gA $obj_name=()"
       eval "declare -gn $ref_name=$obj_name"
       eval $obj_name['$k']='${left[$k]}'
       jp.push "$ref_name"
@@ -577,27 +577,28 @@ function jp.i {
 
 function jp.run {
   JP_OBJ_COUNT=0
+  declare -gn JP_BUF=JP_IN
   jp.parse_json || return
-  [[ $JP_SILENT ]] && return 0
   jp.push "$JP_R"
 
-  # enable jp.type to write and read from /dev/fd/3 to avoid using a subshell
-  if [[ -e /dev/fd/3 ]];then
-    [[ ! -w /dev/fd/3 ]] && chmod u+w /dev/fd/3 # only needed in bash 5+
-  fi
-
+  local in_line="$JP_LINE" in_col="$JP_COL"
+  local arg_buf=()
+  declare -gn JP_BUF=arg_buf
   for arg in "$@";do
-    jp.parse_json "$arg" 2>/dev/null
-    if [[ $? > 0 ]];then
+    if [[ "$arg" == j* ]];then # transformation command
       eval "$arg"
-      if [[ $? > 0 ]];then
-        jp.error "filter failed to process '$arg'"
-        return
-      fi
     else
+      JP_LINE=0
+      JP_COL=0
+      arg_buf=("$arg")
+      jp.parse_json || return
       jp.push "$JP_R"
     fi
   done
+  JP_LINE="$in_line" # restore the JP_IN buffer state after transformations
+  JP_COL="$in_col"
+
+  [[ $JP_SILENT ]] && return 0
   while [[ $JP_STACKSIZE > 0 ]];do
     jp.pop
     jp.to_json "$JP_R"
@@ -622,14 +623,16 @@ function jp.main {
     esac
     shift $((OPTIND-1))
   done
+
+  # enable jp.type to write and read from /dev/fd/3 to avoid using a subshell
+  if [[ -e /dev/fd/3 ]];then
+    [[ ! -w /dev/fd/3 ]] && chmod u+w /dev/fd/3 # only needed in bash 5+
+  fi
+
+  IFS=$'\n' read -rd '' -a JP_IN
   while :;do
-    local start_line="$JP_LINE"
     jp.run "$@" 3< <(:) || return
-    jp.drop_ws
-    if [[ "$JP_C" ]];then # there is more to parse
-      (( JP_LINE > start_line )) || jp.error "expected '\n' but found $JP_C" || return
-      continue
-    fi
+    (( JP_LINE+1 < "${#JP_IN[@]}" )) && continue # more lines to parse
     break
   done
   jp.detect_nullbyte
