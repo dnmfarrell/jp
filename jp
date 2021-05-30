@@ -53,7 +53,7 @@ function jp.array {
   (( JP_OBJ_COUNT++ ))
   local array_name="JP$JP_OBJ_COUNT"
   local ref_name="JPR$JP_OBJ_COUNT"
-  eval "declare -ga $array_name"
+  eval "declare -ga $array_name=()"
   eval "declare -gn $ref_name=$array_name"
   jp.chomp
   jp.drop_ws
@@ -83,7 +83,7 @@ function jp.object {
   (( JP_OBJ_COUNT++ ))
   local obj_name="JP$JP_OBJ_COUNT"
   local ref_name="JPR$JP_OBJ_COUNT"
-  eval "declare -gA $obj_name"
+  eval "declare -gA $obj_name=()"
   eval "declare -gn $ref_name=$obj_name"
   jp.chomp
   jp.drop_ws
