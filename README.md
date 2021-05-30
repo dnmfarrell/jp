@@ -6,26 +6,25 @@ jp is a JSON processor: it takes a stream of JSON text, parses it, optionally ch
 Dependencies
 ------------
 * Bash 4.3 or higher (namerefs)
-* GNU coreutils `fold`
 
 
 Parsing
 -------
-jp passes 316/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. One failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
+jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
 
 
 Transforming
 ------------
-N.B. transformations are a work in progresss; I add new features as I need them. Feel free to add your own, they're easy to add and there is plenty of prior art to copy from.
+N.B. transformations are a work in progress; I add new features as I need them. Feel free to add your own, they're easy to add and there is plenty of prior art to copy from.
 
 jp parses the incoming JSON stream into a data structure and places it on a stack. It then reads args for any transformation instructions.
 
     - push: any json literal will be parsed and pushed onto the stack, e.g. "foo"
     - pop: pops the top entry off the stack, deleting it
     - swap: swaps the top two entries of the stack with each other
-    - dup: copies the vlaue on the top of the stack making it the top two entries
+    - dup: copies the value on the top of the stack making it the top two entries
     - merge: combines all values on the stack into a single structure
-    - keys, values: pop an object off the stack and push one key/valuefor each member
+    - keys, values: pop an object off the stack and push one key/value for each member
     - pairs: pop an object off the stack and push an object pair for each member
     - k: lookup the value of a given key in an object
     - i: lookup the value of an array index
@@ -107,7 +106,7 @@ All that's needed to solve these issues is a better shell programming language w
 
 Improvements
 ------------
-* jp is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will glady recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
+* jp is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will gladly recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
 * jp creates a data structure which mirrors its input. This ties it's representation to the behavior of Bash data structures; for example jp stores objects as associate arrays: this means it cannot have duplicate keys, and the order of keys is not preserved. It might be better to store objects as tagged arrays instead.
 * jp needs more tests!
 

@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE JP_COL JP_BUF JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT JP_IDX
+declare JP_LINE=0 JP_COL=0 JP_BUF JP_C JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -21,29 +21,19 @@ function jp.trace {
 }
 
 function jp.chomp {
-  JP_C="${JP_BUF[$JP_IDX]}"
-  (( JP_IDX++ ))
-  if [[ "$JP_C" == [$'\n\v\f\r'] ]];then
-    (( JP_COL=1 ))
-    (( JP_LINE++ ))
-  else
+  if (( JP_COL < "${#JP_BUF[$JP_LINE]}" ));then
+    JP_C="${JP_BUF[$JP_LINE]:$JP_COL:1}"
     (( JP_COL++ ))
+  else
+    (( JP_LINE++ ))
+    JP_C="${JP_BUF[$JP_LINE]:0:1}"
+    JP_COL=1
   fi
-}
-
-function jp.drop_blanks {
-  while :;do
-    if [[ "$JP_C" == [[:blank:]] ]];then
-      jp.chomp
-    else
-      break
-    fi
-  done
 }
 
 function jp.drop_ws {
   while :;do
-    if [[ "$JP_C" == [[:blank:]$'\n\r'] ]];then
+    if [[ "$JP_C" == [[:blank:]] ]];then
       jp.chomp
     else
       break
@@ -189,11 +179,11 @@ function jp.number {
 }
 
 function jp.string {
-  local str=
+  local str= start_line="$JP_LINE"
   while :;do
     [[ "$JP_C" != '' ]] || jp.error "unterminated string: didn't find \"" || return
     jp.chomp
-    if [[ "$JP_C" == $'\n' ]];then
+    if [[ "$JP_LINE" > "$start_line" ]];then
       jp.error "unescaped newline in string" || return
     elif [[ "$JP_C" == $'\t' ]];then
       jp.error "unescaped tab in string" || return
@@ -285,16 +275,14 @@ function jp.read_next {
 }
 
 function jp.parse_json {
-  JP_C=
-  if [[ $# > 0 ]];then
-    readarray -t JP_BUF < <(fold -w1 <<< "$1")
-  else
-    readarray -t JP_BUF < <(fold -w1)
+  if [[ ! "$JP_BUF" ]];then
+    if [[ $# > 0 ]];then
+      IFS=$'\n' read -rd '' -a JP_BUF <<< "$1"
+    else
+      IFS=$'\n' read -rd '' -a JP_BUF
+    fi
+    jp.chomp
   fi
-  JP_IDX=0
-  JP_COL=1
-  JP_LINE=1
-  jp.chomp
   jp.drop_ws
   jp.read_next
 }
@@ -359,6 +347,12 @@ function jp.to_json {
       ;;
     *) jp.error "unknown type" || return
   esac
+}
+
+function jp.detect_nullbyte {
+  local buf=
+  IFS= read -rd '' buf
+  [[ -z "$buf" ]] || jp.error "received input after null byte" || return
 }
 
 function jp.prettyprint {
@@ -630,16 +624,14 @@ function jp.main {
   done
   while :;do
     jp.run "$@" 3< <(:) || return
-    jp.drop_blanks
-    if [[ "$JP_C" ]];then
-      jp.expect $'\n' || return
-      if [[ $(( JP_IDX+1 )) < "${#JP_BUF[@]}" ]];then
-        JP_IN="${JP_IN:$JP_IDX}"
-        continue
-      fi
+    jp.drop_ws
+    if [[ "$JP_C" ]];then # there is more to parse
+      (( JP_COL == 1 )) || jp.error "expected '\n' but found $JP_C" || return
+      continue
     fi
     break
   done
+  jp.detect_nullbyte
 }
 [[ "$BASH_SOURCE" == "$0" ]] && jp.main "$@"
 # vim: set ft=sh:
