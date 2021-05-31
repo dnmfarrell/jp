@@ -25,6 +25,7 @@ jp parses the incoming JSON stream into a data structure and places it on a stac
     - swap: swaps the top two entries of the stack with each other
     - dup: copies the value on the top of the stack making it the top two entries
     - count: replaces the stack with a count of stack entries
+    - concat: combine all the strings on the stack into one string
     - keys, values: pop an object off the stack and push one key/value for each member
     - pairs: pop an object off the stack and push an object pair for each member
     - k: lookup the value of a given key in an object

@@ -318,8 +318,7 @@ function jp.keys {
     local i=1 len=$(("${#tos[@]}"-3))
     while (( i < len ));do
       local rv="JP_RV$argi"
-      eval "declare -ga $rv=()"
-      eval $rv+='("${tos[$i]}")'
+      eval 'declare -ga '"$rv"='("${tos[$i]}")'
       (( argi++ ))
       jp.push "$rv"
       (( i+=4 ))
@@ -337,8 +336,7 @@ function jp.values {
     while (( i < len ));do
       local val="${tos[$i]}"
       local rv="JP_RV$argi"
-      eval "declare -ga $rv=()"
-      eval $rv+='("$val")'
+      eval 'declare -ga '"$rv"='("$val")'
       (( argi++ ))
       jp.push "$rv"
       (( i+=4 ))
@@ -380,8 +378,7 @@ function jp.k {
       if [[ "$k" == "${tos[$i]}" ]];then
         local val="${tos[$((i+2))]}"
         local rv="JP_RV$argi"
-        eval "declare -ga $rv=()"
-        eval $rv+='("$val")'
+        eval 'declare -ga '"$rv"='("$val")'
         (( argi++ ))
         jp.push "$rv"
         return 0
@@ -405,8 +402,7 @@ function jp.i {
     if (( real_idx < "${#tos[@]}" ));then
      local val="${tos[$real_idx]}"
      local rv="JP_RV$argi"
-     eval "declare -ga $rv=()"
-     eval $rv+='("$val")'
+     eval 'declare -ga '"$rv"='("$val")'
      (( argi++ ))
      jp.push "$rv"
      return 0
@@ -423,6 +419,23 @@ function jp.count {
   done
   local rv="JP_RV$argi"
   eval 'declare -ga '"$rv"='("$count")'
+  (( argi++ ))
+  jp.push "$rv"
+}
+
+function jp.concat {
+  local str
+  while (( JP_STACKSIZE ));do
+    jp.pop
+    local -n tos="$JP_OUT"
+    if [[ "${tos[0]:0:1}" == '"' ]];then
+      str+="${tos[0]:1:$(("${#tos[0]}"-2))}"
+    else
+      jp.error "can only concat strings" || return
+    fi
+  done
+  local rv="JP_RV$argi"
+  eval 'declare -ga '"$rv"='("\"$str\"")'
   (( argi++ ))
   jp.push "$rv"
 }
