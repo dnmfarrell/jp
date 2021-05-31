@@ -423,7 +423,22 @@ function jp.count {
   jp.push "$rv"
 }
 
-function jp.concat {
+function jp.++ {
+  local -n tos="${JP_STACK}"
+  local start_token="${tos:0:1}"
+  if [[ "$start_token" == '"' ]];then
+    jp.++_str
+  elif [[ "$start_token" == '[' ]];then
+    jp.++_collection "[" "]"
+  elif [[ "$start_token" == '{' ]];then
+    jp.++_collection "{" "}"
+  else
+    jp.error "++ can only concat strings, arrays or objects"
+  fi
+  return
+}
+
+function jp.++_str {
   local str
   while (( JP_STACKSIZE ));do
     jp.pop
@@ -431,12 +446,38 @@ function jp.concat {
     if [[ "${tos[0]:0:1}" == '"' ]];then
       str+="${tos[0]:1:$(("${#tos[0]}"-2))}"
     else
-      jp.error "can only concat strings" || return
+      jp.error "++ was expecting a '\"' but found '${tos[0]}'" || return
     fi
   done
   local rv="JP_RV$argi"
   eval 'declare -ga '"$rv"='("\"$str\"")'
   (( argi++ ))
+  jp.push "$rv"
+}
+
+function jp.++_collection {
+  local start="$1" end="$2"
+  local rv="JP_RV$argi"
+  eval 'declare -ga '"$rv"='("$start")'
+  (( argi++ ))
+  while (( JP_STACKSIZE ));do
+    jp.pop
+    local -n tos="$JP_OUT"
+    if [[ "${tos[0]}" == "$start" ]];then
+      eval 'local rvlen'='$(("${#'"$rv"'[@]}"-1))'
+      local toslen=$(("${#tos[@]}"-2))
+      if [[ "$toslen" > 0 ]];then
+        if [[ "$rvlen" > 0 ]];then
+          eval "$rv"+='("," "${tos[@]:1:$toslen}")'
+        else
+          eval "$rv"+='("${tos[@]:1:$toslen}")'
+        fi
+      fi
+    else
+      jp.error "++ was expecting a '$start' but found '${tos[0]}'" || return
+    fi
+  done
+  eval "$rv"+='("$end")'
   jp.push "$rv"
 }
 # END TRANSFORM FUNCTIONS
@@ -519,7 +560,7 @@ function jp.run {
   local argi=0
   for arg in "$@";do
     if [[ "$arg" == j* ]];then # transformation command
-      eval "$arg"
+      eval "$arg" || return
     else # json to parse
       JP_LINE=0
       JP_COL=0
