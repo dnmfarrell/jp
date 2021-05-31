@@ -12,6 +12,7 @@ Parsing
 -------
 jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
 
+Unlike some parsers, jp preserves object key order, and permits duplicate keys in objects.
 
 Transforming
 ------------
@@ -23,30 +24,15 @@ jp parses the incoming JSON stream into a data structure and places it on a stac
     - pop: pops the top entry off the stack, deleting it
     - swap: swaps the top two entries of the stack with each other
     - dup: copies the value on the top of the stack making it the top two entries
-    - merge: combines all values on the stack into a single structure
     - keys, values: pop an object off the stack and push one key/value for each member
     - pairs: pop an object off the stack and push an object pair for each member
     - k: lookup the value of a given key in an object
     - i: lookup the value of an array index
 
-    # merge two objects
-    echo '{"foo": 123}' | jp '{"bar": 456}' jp.merge
-    {
-      "foo": 123,
-      "bar": 456
-    }
-
     # print an object's keys
     echo '{"foo": 123, "bar": 456}' | jp jp.keys
     "foo"
     "bar"
-
-    # convert an object's keys into an array
-    echo '{"foo": 123, "bar": 456}' | jp jp.keys '[]' jp.merge
-    [
-      "foo",
-      "bar"
-    ]
 
     # extract a value from an object
     echo '{"user":"dnmfarrell","email":"foo@example.com"}' | jp '"email"' jp.k
@@ -107,7 +93,6 @@ All that's needed to solve these issues is a better shell programming language w
 Improvements
 ------------
 * jp is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will gladly recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
-* jp creates a data structure which mirrors its input. This ties it's representation to the behavior of Bash data structures; for example jp stores objects as associate arrays: this means it cannot have duplicate keys, and the order of keys is not preserved. It might be better to store objects as tagged arrays instead.
 * jp needs more tests!
 
 

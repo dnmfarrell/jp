@@ -6,7 +6,8 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE=0 JP_COL=0 JP_C JP_IN JP_OUT JP_R JP_OBJ_COUNT JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT
+declare JP_LINE=0 JP_COL=0 JP_C JP_IN JP_OUT JP_TOKENS JP_INDENT="  " JP_PRETTY JP_TYPE JP_SILENT
+shopt -s extglob
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -53,76 +54,66 @@ function jp.expect {
 }
 
 function jp.array {
-  (( JP_OBJ_COUNT++ ))
-  local array_name="JP$JP_OBJ_COUNT"
-  local ref_name="JPR$JP_OBJ_COUNT"
-  eval "declare -ga $array_name=()"
-  eval "declare -gn $ref_name=$array_name"
+  JP_TOKENS+=("[")
   jp.chomp
   jp.drop_ws
   if [[ "$JP_C" != ']' ]];then
     jp.read_next || return
-    eval $array_name+='("$JP_R")'
     while :;do
       [[ "$JP_C" != '' ]] || jp.error "unterminated array: didn't find ]" || return
       jp.drop_ws
       if [[ "$JP_C" == ']' ]];then
         break
       elif [[ "$JP_C" == ',' ]];then
+        JP_TOKENS+=(",")
         jp.chomp
         jp.drop_ws
         jp.read_next || return
-        eval $array_name+='("$JP_R")'
       else
         jp.error "expected , or ] but found '$JP_C'" || return
       fi
     done
   fi
-  JP_R=$ref_name
+  JP_TOKENS+=("]")
   jp.chomp
 }
 
 function jp.object {
-  (( JP_OBJ_COUNT++ ))
-  local obj_name="JP$JP_OBJ_COUNT"
-  local ref_name="JPR$JP_OBJ_COUNT"
-  eval "declare -gA $obj_name=()"
-  eval "declare -gn $ref_name=$obj_name"
+  JP_TOKENS+=("{")
   jp.chomp
   jp.drop_ws
   if [[ "$JP_C" != '}' ]];then
     jp.expect '"' || return
     jp.string
-    local k="$JP_R"
     jp.drop_ws
     jp.expect ":" || return
+    JP_TOKENS+=(":")
     jp.chomp
     jp.drop_ws
     jp.read_next || return
-    eval $obj_name['$k']='$JP_R'
     while :;do
       [[ "$JP_C" != '' ]] || jp.error "unterminated object: didn't find }" return
       jp.drop_ws
       if [[ "$JP_C" == '}' ]];then
         break
       elif [[ "$JP_C" == ',' ]];then
+        JP_TOKENS+=(",")
         jp.chomp
         jp.drop_ws
         jp.expect '"' || return
         jp.string
-        local k="$JP_R"
         jp.drop_ws
         jp.expect ":" || return
+        JP_TOKENS+=(":")
         jp.chomp
         jp.drop_ws
         jp.read_next || return
-        eval $obj_name['$k']='$JP_R'
       else
         jp.error "expected , or } but found $JP_C" || return
       fi
     done
   fi
-  JP_R=$ref_name
+  JP_TOKENS+=("}")
   jp.chomp
 }
 
@@ -172,7 +163,7 @@ function jp.number {
       fi
       num="$num$JP_C"
     else
-      JP_R="$num"
+      JP_TOKENS+=("$num")
       break
     fi
     jp.chomp
@@ -205,7 +196,7 @@ function jp.string {
         jp.error "invalid escape sequence in string: \\$JP_C" || return
       fi
     elif [[ "$JP_C" == '"' ]];then
-      JP_R="\"$str\"" # prepend with s so we can quote it later
+      JP_TOKENS+=("\"$str\"")
       break
     fi
     str="$str$JP_C"
@@ -220,7 +211,7 @@ function jp.null {
     if [[ "$JP_C" == "l" ]];then
       jp.chomp
       if [[ "$JP_C" == "l" ]];then
-        JP_R="null"
+        JP_TOKENS+=("null")
         jp.chomp
         return
       fi
@@ -236,7 +227,7 @@ function jp.bool_true {
     if [[ "$JP_C" == "u" ]];then
       jp.chomp
       if [[ "$JP_C" == "e" ]];then
-        JP_R="true"
+        JP_TOKENS+=("true")
         jp.chomp
         return
       fi
@@ -254,7 +245,7 @@ function jp.bool_false {
       if [[ "$JP_C" == "s" ]];then
         jp.chomp
         if [[ "$JP_C" == "e" ]];then
-          JP_R="false"
+          JP_TOKENS+=("false")
           jp.chomp
           return
         fi
@@ -287,68 +278,6 @@ function jp.parse_json {
   [[ "$JP_C" == $'\n' ]] || jp.error "expected '\n' but found $JP_C" || return
 }
 
-function jp.type {
-  local typedec=
-
-  if [[ -w /dev/fd/3 ]];then
-    declare -p "$1" > /dev/fd/3 2> /dev/null
-    IFS= read -u 3 typedec
-  else # degrade to subshell Zzz for non-Linux
-    typedec=$(declare -p "$1" 2> /dev/null)
-  fi
-
-  if [[ -z "$typedec" ]];then
-    JP_TYPE="scalar"
-  elif [[ "$typedec" == "declare --"* ]];then
-    JP_TYPE="indirect-ref"
-  elif [[ "$typedec" == "declare -a"* ]];then
-    JP_TYPE="array"
-  elif [[ "$typedec" == "declare -A"* ]];then
-    JP_TYPE="assoc-array"
-  elif [[ "$typedec" == "declare -n"* ]];then
-    local name=${typedec#*\"}
-    jp.type "${name:0:-1}"
-  else
-    JP_TYPE=
-  fi
-}
-
-function jp.to_json {
-  jp.type "$1"
-  local arg="$1"
-  case "$JP_TYPE" in
-    'scalar') JP_OUT+=("$arg");;
-    'indirect-ref') eval "JP_OUT+=(\$$arg)";;
-    'array')
-      JP_OUT+=('[')
-      local -n arr="$arg"
-      local i=0
-      local len=${#arr[@]}
-      while (( i < len  ));do
-        jp.to_json "${arr[$i]}"
-        (( i++ ))
-        (( i < len )) && JP_OUT+=(',')
-      done
-      JP_OUT+=(']')
-      ;;
-    'assoc-array')
-      JP_OUT+=('{')
-      local -n aar="$arg"
-      local i=0
-      local len=${#aar[@]}
-      for k in "${!aar[@]}";do
-        jp.to_json "$k"
-        JP_OUT+=(':')
-        jp.to_json "${aar[$k]}"
-        (( i++ ))
-        (( i < len )) && JP_OUT+=(',')
-      done
-      JP_OUT+=('}')
-      ;;
-    *) jp.error "unknown type" || return
-  esac
-}
-
 function jp.detect_nullbyte {
   local buf=
   IFS= read -rd '' buf
@@ -356,14 +285,15 @@ function jp.detect_nullbyte {
 }
 
 function jp.prettyprint {
+  local -n out="$JP_OUT"
   local indentchars="$1"
   local i=0
-  local len=${#JP_OUT[@]}
+  local len=${#out[@]}
   local indentlen=${#indentchars}
   local indent=
   local linebuf=
   while (( i < len  ));do
-    local token="${JP_OUT[$i]}"
+    local token="${out[$i]}"
     case $token in
       [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
                linebuf="$linebuf$token"
@@ -371,7 +301,7 @@ function jp.prettyprint {
                linebuf="$indent$token"
              fi
              indent="$indent$indentchars"
-             if [[ "${JP_OUT[$(($i+1))]}" != [\]}] ]];then
+             if [[ "${out[$(($i+1))]}" != [\]}] ]];then
                echo -E "$linebuf"
                linebuf="$indent"
              fi
@@ -387,7 +317,7 @@ function jp.prettyprint {
              else
                linebuf="$indent$token"
              fi
-             if [[ "${JP_OUT[$(($i+1))]}" != ',' ]];then
+             if [[ "${out[$(($i+1))]}" != ',' ]];then
                echo -E "$linebuf"
                linebuf="$indent"
              fi
@@ -403,10 +333,11 @@ function jp.prettyprint {
 }
 
 function jp.uglyprint {
+  local -n out="$JP_OUT"
   local i=0
-  local len=${#JP_OUT[@]}
+  local len=${#out[@]}
   while (( i < len  ));do
-    local token="${JP_OUT[$i]}"
+    local token="${out[$i]}"
     echo -nE "$token"
     (( i++ ))
   done
@@ -415,7 +346,7 @@ function jp.uglyprint {
 
 function jp.pop {
   (( JP_STACKSIZE-- ))
-  JP_R="${JP_STACK[$JP_STACKSIZE]}"
+  JP_OUT="${JP_STACK[$JP_STACKSIZE]}"
   JP_STACK[$JP_STACKSIZE]=
 }
 
@@ -431,184 +362,159 @@ function jp.dup {
 
 function jp.swap {
   jp.pop
-  local temp="$JP_R"
+  local temp="$JP_OUT"
   jp.pop
   jp.push "$temp"
-  jp.push "$JP_R"
-}
-
-function jp.merge {
-  jp.pop
-  local left="$JP_R"
-  jp.type "$left"
-  local lefttype="$JP_TYPE"
-
-  local count="$JP_STACKSIZE"
-  while [[ $count > 0 ]];do
-  jp.pop
-  case "$lefttype" in
-    'scalar')
-      jp.type "$JP_R"
-      case "$JP_TYPE" in
-        'scalar')
-          jp.error "cannot merge two scalars" || return
-          ;;
-        'array')
-          eval $left='("$left" "${'"$JP_R"'[@]}")'
-          ;;
-        'assoc-array')
-          jp.error "cannot merge a scalar into an object" || return
-          ;;
-        *) jp.error "unrecognized type: '$JP_TYPE'" || return
-      esac
-      ;;
-    'array')
-      jp.type "$JP_R"
-      case "$JP_TYPE" in
-        'scalar')
-          eval $left+='("$JP_R")'
-          ;;
-        'array')
-          eval $left+='("${'"$JP_R"'[@]}")'
-          ;;
-        'assoc-array')
-          eval $left+='("$JP_R")'
-          ;;
-        *) jp.error "unrecognized type: '$JP_TYPE'" || return
-      esac
-      ;;
-    'assoc-array')
-      jp.type "$JP_R"
-      case "$JP_TYPE" in
-        'scalar')
-          jp.error "cannot merge a scalar into an object" || return
-          ;;
-        'array')
-          jp.error "cannot merge an array into into an object" || return
-          ;;
-        'assoc-array')
-          local -n right=$JP_R
-          for k in "${!right[@]}";do
-            eval $left['"$k"']='"${right[$k]}"'
-          done
-          ;;
-        *) jp.error "unrecognized type: '$JP_TYPE'" || return
-      esac
-      ;;
-    *) jp.error "unrecognized type: '$JP_TYPE'" || return
-  esac
-  (( count-- ))
-  done
-  jp.push $left
+  jp.push "$JP_OUT"
 }
 
 function jp.keys {
   jp.pop
-  jp.type "$JP_R"
-  if [[ "$JP_TYPE" == 'assoc-array' ]];then
-    local -n left=$JP_R
-    for k in "${!left[@]}";do
-      jp.push "$k"
+  local -n tos="$JP_OUT"
+  if [[ "${tos[0]}" == '{' ]];then
+    local i=1 len=$(("${#tos[@]}"-3))
+    while (( i < len ));do
+      local rv="JP_RV$argi"
+      eval "declare -ga $rv=()"
+      eval $rv+='("${tos[$i]}")'
+      (( argi++ ))
+      jp.push "$rv"
+      (( i+=4 ))
     done
   else
-    jp.error "keys only works on objects, I saw a: '$JP_TYPE'" || return
+    jp.error "keys only works on objects" || return
   fi
-}
-
-function jp.k {
-  jp.pop
-  local key="$JP_R"
-  jp.pop
-  jp.type "$JP_R"
-  if [[ "$JP_TYPE" == "assoc-array" ]];then
-    local -n object=$JP_R
-    [[ -n "${object[$key]}" ]] && jp.push "${object[$key]}"
-  else
-    jp.error "only objects have keys" || return
-  fi
-  return 0
 }
 
 function jp.values {
   jp.pop
-  jp.type "$JP_R"
-  if [[ "$JP_TYPE" == 'assoc-array' ]];then
-    local -n left=$JP_R
-    for k in "${!left[@]}";do
-      jp.push "${left[$k]}"
+  local -n tos="$JP_OUT"
+  if [[ "${tos[0]}" == '{' ]];then
+    local i=3 len=$(("${#tos[@]}"-1))
+    while (( i < len ));do
+      local val="${tos[$i]}"
+      local rv="JP_RV$argi"
+      eval "declare -ga $rv=()"
+      eval $rv+='("$val")'
+      (( argi++ ))
+      jp.push "$rv"
+      (( i+=4 ))
     done
   else
-    jp.error "values only works on objects, I saw a: '$JP_TYPE'" || return
+    jp.error "values only works on objects" || return
   fi
 }
 
 function jp.pairs {
   jp.pop
-  jp.type "$JP_R"
-  if [[ "$JP_TYPE" == 'assoc-array' ]];then
-    local -n left=$JP_R
-    for k in "${!left[@]}";do
-      (( JP_OBJ_COUNT++ ))
-      local obj_name="JP$JP_OBJ_COUNT"
-      local ref_name="JPR$JP_OBJ_COUNT"
-      eval "declare -gA $obj_name=()"
-      eval "declare -gn $ref_name=$obj_name"
-      eval $obj_name['$k']='${left[$k]}'
-      jp.push "$ref_name"
+  local -n tos="$JP_OUT"
+  if [[ "${tos[0]}" == '{' ]];then
+    local i=1 len=$(("${#tos[@]}"-3))
+    while (( i < len ));do
+      local val="${tos[$((i+2))]}"
+      local rv="JP_RV$argi"
+      eval "declare -ga $rv=()"
+      eval $rv+='({ "${tos[$i]}" ":" "$val" })'
+      (( argi++ ))
+      jp.push "$rv"
+      (( i+=4 ))
     done
   else
-    jp.error "pairs only works on objects, I saw a: '$JP_TYPE'" || return
+    jp.error "pairs only works on objects" || return
+  fi
+}
+
+function jp.k {
+  jp.pop
+  local -n tos="$JP_OUT"
+  local k="${tos[0]}"
+  [[ "$k" == '"'* ]] || error "k requires a string" || return
+  jp.pop
+  local -n tos="$JP_OUT"
+  if [[ "${tos[0]}" == '{' ]];then
+    local i=1 len=$(("${#tos[@]}"-3))
+    while (( i < len ));do
+      if [[ "$k" == "${tos[$i]}" ]];then
+        local val="${tos[$((i+2))]}"
+        local rv="JP_RV$argi"
+        eval "declare -ga $rv=()"
+        eval $rv+='("$val")'
+        (( argi++ ))
+        jp.push "$rv"
+        return 0
+      fi
+      (( i+=4 ))
+    done
+  else
+    jp.error "only objects have keys" || return
   fi
 }
 
 function jp.i {
   jp.pop
-  local i="$JP_R"
+  local -n tos="$JP_OUT"
+  local i="${tos[0]}"
+  [[ "$i" == +([[:digit:]]) ]] || error "i requires an integer" || return
   jp.pop
-  jp.type "$JP_R"
-  if [[ "$JP_TYPE" == "array" ]];then
-    local -n array=$JP_R
-    [[ "${#array[@]}" > "$i" ]] && jp.push "${array[$i]}"
+  local -n tos="$JP_OUT"
+  if [[ "${tos[0]}" == '[' ]];then
+    local real_idx=$(( i*2+1 ))
+    if (( real_idx < "${#tos[@]}" ));then
+     local val="${tos[$real_idx]}"
+     local rv="JP_RV$argi"
+     eval "declare -ga $rv=()"
+     eval $rv+='("$val")'
+     (( argi++ ))
+     jp.push "$rv"
+     return 0
+    fi
   else
-    jp.error "can only index arrays" || return
+    jp.error "i only works on arrays" || return
   fi
-  return 0
 }
 
 function jp.run {
-  JP_OBJ_COUNT=0
-  declare -gn JP_BUF=JP_IN
+  # parse stdin
+  declare -gn JP_BUF=JP_IN # set the parse buffer to stdin
+  declare -a tokens=()
+  declare -gn JP_TOKENS=tokens
   jp.parse_json || return
-  jp.push "$JP_R"
+  jp.push tokens
 
-  local in_line="$JP_LINE" in_col="$JP_COL"
+  # process args
+  local in_line="$JP_LINE" in_col="$JP_COL" # save stdin parse position
   local arg_buf=()
-  declare -gn JP_BUF=arg_buf
+  declare -gn JP_BUF=arg_buf # set the parse buffer to args
+  local argi=0
   for arg in "$@";do
     if [[ "$arg" == j* ]];then # transformation command
       eval "$arg"
-    else
+    else # json to parse
       JP_LINE=0
       JP_COL=0
       arg_buf=("$arg")
+      local argtokens="argtokens$argi"
+      eval "declare -a $argtokens=()"
+      eval "declare -gn JP_TOKENS=$argtokens"
       jp.parse_json || return
-      jp.push "$JP_R"
+      jp.push "$argtokens"
+      (( argi++ ))
     fi
   done
-  JP_LINE="$in_line" # restore the JP_IN buffer state after transformations
+  JP_LINE="$in_line" # restore the stdin parse position
   JP_COL="$in_col"
 
+  # print
   [[ $JP_SILENT ]] && return 0
   while [[ $JP_STACKSIZE > 0 ]];do
     jp.pop
-    jp.to_json "$JP_R"
     if [[ $JP_PRETTY ]];then
       jp.prettyprint "$JP_INDENT"
     else
       jp.uglyprint
     fi
-    JP_OUT=()
   done
+  return 0
 }
 
 function jp.main {
@@ -624,14 +530,9 @@ function jp.main {
     shift $((OPTIND-1))
   done
 
-  # enable jp.type to write and read from /dev/fd/3 to avoid using a subshell
-  if [[ -e /dev/fd/3 ]];then
-    [[ ! -w /dev/fd/3 ]] && chmod u+w /dev/fd/3 # only needed in bash 5+
-  fi
-
   IFS=$'\n' read -rd '' -a JP_IN
   while :;do
-    jp.run "$@" 3< <(:) || return
+    jp.run "$@" || return
     (( JP_LINE+1 < "${#JP_IN[@]}" )) && continue # more lines to parse
     break
   done
