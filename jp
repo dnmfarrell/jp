@@ -21,6 +21,7 @@ function jp.trace {
   fi
 }
 
+# BEGIN PARSE FUNCTIONS
 function jp.chomp {
   if (( JP_COL < "${#JP_BUF[$JP_LINE]}" ));then
     JP_C="${JP_BUF[$JP_LINE]:$JP_COL:1}"
@@ -283,67 +284,9 @@ function jp.detect_nullbyte {
   IFS= read -rd '' buf
   [[ -z "$buf" ]] || jp.error "received input after null byte" || return
 }
+# END PARSE FUNCTIONS
 
-function jp.prettyprint {
-  local -n out="$JP_OUT"
-  local indentchars="$1"
-  local i=0
-  local len=${#out[@]}
-  local indentlen=${#indentchars}
-  local indent=
-  local linebuf=
-  while (( i < len  ));do
-    local token="${out[$i]}"
-    case $token in
-      [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
-               linebuf="$linebuf$token"
-             else
-               linebuf="$indent$token"
-             fi
-             indent="$indent$indentchars"
-             if [[ "${out[$(($i+1))]}" != [\]}] ]];then
-               echo -E "$linebuf"
-               linebuf="$indent"
-             fi
-             ;;
-      [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}"
-             if [[ "$linebuf" == *[^[:blank:]] ]];then
-               if [[ "${linebuf:$((${#linebuf}-1)):1}" == [\[{] ]];then
-                 linebuf="$linebuf$token"
-               else
-                 echo -E "$linebuf"
-                 linebuf="$indent$token"
-               fi
-             else
-               linebuf="$indent$token"
-             fi
-             if [[ "${out[$(($i+1))]}" != ',' ]];then
-               echo -E "$linebuf"
-               linebuf="$indent"
-             fi
-             ;;
-        ',') echo -E "$linebuf,"
-             linebuf="$indent";;
-        ':') linebuf="$linebuf: ";;
-          *) linebuf="$linebuf$token"
-    esac
-    (( i++ ))
-  done
-  [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
-}
-
-function jp.uglyprint {
-  local -n out="$JP_OUT"
-  local i=0
-  local len=${#out[@]}
-  while (( i < len  ));do
-    local token="${out[$i]}"
-    echo -nE "$token"
-    (( i++ ))
-  done
-  echo
-}
-
+# BEGIN TRANSFORM FUNCTIONS
 function jp.pop {
   (( JP_STACKSIZE-- ))
   JP_OUT="${JP_STACK[$JP_STACKSIZE]}"
@@ -472,7 +415,71 @@ function jp.i {
     jp.error "i only works on arrays" || return
   fi
 }
+# END TRANSFORM FUNCTIONS
 
+# BEGIN PRINT FUNCTIONS
+function jp.prettyprint {
+  local -n out="$JP_OUT"
+  local indentchars="$1"
+  local i=0
+  local len=${#out[@]}
+  local indentlen=${#indentchars}
+  local indent=
+  local linebuf=
+  while (( i < len  ));do
+    local token="${out[$i]}"
+    case $token in
+      [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
+               linebuf="$linebuf$token"
+             else
+               linebuf="$indent$token"
+             fi
+             indent="$indent$indentchars"
+             if [[ "${out[$(($i+1))]}" != [\]}] ]];then
+               echo -E "$linebuf"
+               linebuf="$indent"
+             fi
+             ;;
+      [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}"
+             if [[ "$linebuf" == *[^[:blank:]] ]];then
+               if [[ "${linebuf:$((${#linebuf}-1)):1}" == [\[{] ]];then
+                 linebuf="$linebuf$token"
+               else
+                 echo -E "$linebuf"
+                 linebuf="$indent$token"
+               fi
+             else
+               linebuf="$indent$token"
+             fi
+             if [[ "${out[$(($i+1))]}" != ',' ]];then
+               echo -E "$linebuf"
+               linebuf="$indent"
+             fi
+             ;;
+        ',') echo -E "$linebuf,"
+             linebuf="$indent";;
+        ':') linebuf="$linebuf: ";;
+          *) linebuf="$linebuf$token"
+    esac
+    (( i++ ))
+  done
+  [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
+}
+
+function jp.uglyprint {
+  local -n out="$JP_OUT"
+  local i=0
+  local len=${#out[@]}
+  while (( i < len  ));do
+    local token="${out[$i]}"
+    echo -nE "$token"
+    (( i++ ))
+  done
+  echo
+}
+# END PRINT FUNCTIONS
+
+# BEGIN MAIN
 function jp.run {
   # parse stdin
   declare -gn JP_BUF=JP_IN # set the parse buffer to stdin
@@ -539,4 +546,5 @@ function jp.main {
   jp.detect_nullbyte
 }
 [[ "$BASH_SOURCE" == "$0" ]] && jp.main "$@"
+# END MAIN
 # vim: set ft=sh:
