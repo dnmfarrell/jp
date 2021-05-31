@@ -415,6 +415,17 @@ function jp.i {
     jp.error "i only works on arrays" || return
   fi
 }
+
+function jp.count {
+  local count="$JP_STACKSIZE"
+  while (( JP_STACKSIZE ));do
+    jp.pop
+  done
+  local rv="JP_RV$argi"
+  eval 'declare -ga '"$rv"='("$count")'
+  (( argi++ ))
+  jp.push "$rv"
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
