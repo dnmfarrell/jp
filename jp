@@ -480,6 +480,20 @@ function jp.++_collection {
   eval "$rv"+='("$end")'
   jp.push "$rv"
 }
+
+function jp.collect {
+  local rv="JP_RV$argi" sep=""
+  eval 'declare -ga '"$rv"='("[")'
+  (( argi++ ))
+  while (( JP_STACKSIZE ));do
+    jp.pop
+    local -n tos="$JP_OUT"
+    eval "$rv"+='($sep "${tos[@]}")'
+    sep=','
+  done
+  eval "$rv"+='("]")'
+  jp.push "$rv"
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
