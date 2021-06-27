@@ -186,13 +186,13 @@ function jp.string {
       str="$str$JP_C"
       jp.chomp
       if [[ "$JP_C" == u ]];then # unicode
-        local esc=u
+        local esc="u"
         for i in 1 2 3 4;do
           jp.chomp
           [[ "$JP_C" == [0-9A-Fa-f] ]] || jp.error "invalid Unicode escape sequence \\$esc$JP_C" || return
           esc+="$JP_C"
         done
-        $JP_C="$esc"
+        JP_C="$esc"
       elif [[ "$JP_C" != [bfnrt\"$'\\'/] ]];then
         jp.error "invalid escape sequence in string: \\$JP_C" || return
       fi
@@ -200,7 +200,7 @@ function jp.string {
       JP_TOKENS+=("\"$str\"")
       break
     fi
-    str="$str$JP_C"
+    str+="$JP_C"
   done
   jp.chomp
 }
