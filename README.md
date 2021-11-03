@@ -8,9 +8,14 @@ Dependencies
 
 Parse
 -----
-jp parses the incoming JSON stream into an array of tokens that are pushed onto its stack.. If it detects any malformed JSON it will emit an error and exit non-zero.
+jp parses the incoming JSON stream into an array of tokens that are pushed onto its stack. If it detects any malformed JSON it will emit an error and exit non-zero.
 
-jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
+jp passes 314/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failed tests are all related to Byte Order Marks:
+
+     i_string_utf16LE_no_BOM.json
+     i_string_UTF-16LE_with_BOM.json
+     i_string_utf16BE_no_BOM.json
+     i_structure_UTF-8_BOM_empty_object.json
 
 Unlike some parsers, jp preserves object key order, and permits duplicate keys in objects.
 
