@@ -378,7 +378,7 @@ function jp.k {
   jp.pop
   local -n tos="$JP_OUT"
   local k="${tos[0]}"
-  [[ "$k" == '"'* ]] || error "k requires a string" || return
+  [[ "$k" == '"'* ]] || jp.error "k requires a string" || return
   jp.pop
   local -n tos="$JP_OUT"
   if [[ "${tos[0]}" == '{' ]];then
