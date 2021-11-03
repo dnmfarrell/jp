@@ -310,6 +310,44 @@ function jp.swap {
   jp.push "$JP_OUT"
 }
 
+JP_ATOM_LEN=
+function jp.get_atom {
+  JP_ATOM_LEN=
+  local i="$1"
+  local -n tos="$JP_OUT"
+  if [[ "${tos[$i]}" == '{' ]];then
+    local nest_count=0
+    while :;do
+      (( i++ ))
+      if [[ "${tos[$i]}" == '{' ]];then
+        (( nest_count++ ))
+      elif [[ "${tos[$i]}" == '}' ]];then
+        (( nest_count-- ))
+        if [ $nest_count -lt 0 ];then
+          (( JP_ATOM_LEN=$i-$1+1 ))
+          return
+        fi
+      fi
+    done
+  elif [[ "${tos[$i]}" == '[' ]];then
+    local nest_count=0
+    while :;do
+      (( i++ ))
+      if [[ "${tos[$i]}" == '[' ]];then
+        (( nest_count++ ))
+      elif [[ "${tos[$i]}" == ']' ]];then
+        (( nest_count-- ))
+        if [ $nest_count -lt 0 ];then
+          (( JP_ATOM_LEN=$i-$1+1 ))
+          return
+        fi
+      fi
+    done
+  else
+     JP_ATOM_LEN=1
+  fi
+}
+
 function jp.keys {
   jp.pop
   local -n tos="$JP_OUT"
@@ -320,7 +358,10 @@ function jp.keys {
       eval 'declare -ga '"$rv"='("${tos[$i]}")'
       (( argi++ ))
       jp.push "$rv"
-      (( i+=4 ))
+      # now skip the :value
+      (( i+=2 ))
+      jp.get_atom "$i"
+      (( i+=1+$JP_ATOM_LEN ))
     done
   else
     jp.error "keys only works on objects" || return
@@ -333,22 +374,25 @@ function jp.vals {
   if [[ "${tos[0]}" == '{' ]];then
     local i=3 len=$(("${#tos[@]}"-1))
     while (( i < len ));do
+      jp.get_atom "$i"
       local val="${tos[$i]}"
       local rv="JP_RV$argi"
-      eval 'declare -ga '"$rv"='("$val")'
+      eval "declare -ga $rv=()"
+      eval $rv+='("${tos[@]:$i:$JP_ATOM_LEN}")'
       (( argi++ ))
       jp.push "$rv"
-      (( i+=4 ))
+      (( i+=3+$JP_ATOM_LEN ))
     done
   elif [[ "${tos[0]}" == '[' ]];then
     local i=1 len=$(("${#tos[@]}"-1))
     while (( i < len ));do
-      local val="${tos[$i]}"
+      jp.get_atom "$i"
       local rv="JP_RV$argi"
-      eval 'declare -ga '"$rv"='("$val")'
+      eval "declare -ga $rv=()"
+      eval $rv+='("${tos[@]:$i:$JP_ATOM_LEN}")'
       (( argi++ ))
       jp.push "$rv"
-      (( i+=2 ))
+      (( i+=1+$JP_ATOM_LEN ))
     done
   else
     jp.error "values only works on objects/arrays" || return
@@ -361,13 +405,15 @@ function jp.pairs {
   if [[ "${tos[0]}" == '{' ]];then
     local i=1 len=$(("${#tos[@]}"-3))
     while (( i < len ));do
-      local val="${tos[$((i+2))]}"
+      local k="${tos[$i]}"
+      (( i+=2))
+      jp.get_atom "$i"
       local rv="JP_RV$argi"
       eval "declare -ga $rv=()"
-      eval $rv+='({ "${tos[$i]}" ":" "$val" })'
+      eval $rv+='({ "$k" : "${tos[@]:$i:$JP_ATOM_LEN} }")'
       (( argi++ ))
       jp.push "$rv"
-      (( i+=4 ))
+      (( i+=1+$JP_ATOM_LEN ))
     done
   else
     jp.error "pairs only works on objects" || return
