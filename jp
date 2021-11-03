@@ -354,9 +354,9 @@ function jp.keys {
   if [[ "${tos[0]}" == '{' ]];then
     local i=1 len=$(("${#tos[@]}"-3))
     while (( i < len ));do
+      (( argi++ ))
       local rv="JP_RV$argi"
       eval 'declare -ga '"$rv"='("${tos[$i]}")'
-      (( argi++ ))
       jp.push "$rv"
       # now skip the :value
       (( i+=2 ))
@@ -376,10 +376,10 @@ function jp.vals {
     while (( i < len ));do
       jp.get_atom "$i"
       local val="${tos[$i]}"
+      (( argi++ ))
       local rv="JP_RV$argi"
       eval "declare -ga $rv=()"
       eval $rv+='("${tos[@]:$i:$JP_ATOM_LEN}")'
-      (( argi++ ))
       jp.push "$rv"
       (( i+=3+$JP_ATOM_LEN ))
     done
@@ -387,10 +387,10 @@ function jp.vals {
     local i=1 len=$(("${#tos[@]}"-1))
     while (( i < len ));do
       jp.get_atom "$i"
+      (( argi++ ))
       local rv="JP_RV$argi"
       eval "declare -ga $rv=()"
       eval $rv+='("${tos[@]:$i:$JP_ATOM_LEN}")'
-      (( argi++ ))
       jp.push "$rv"
       (( i+=1+$JP_ATOM_LEN ))
     done
@@ -408,10 +408,10 @@ function jp.pairs {
       local k="${tos[$i]}"
       (( i+=2))
       jp.get_atom "$i"
+      (( argi++ ))
       local rv="JP_RV$argi"
       eval "declare -ga $rv=()"
       eval $rv+='({ "$k" : "${tos[@]:$i:$JP_ATOM_LEN} }")'
-      (( argi++ ))
       jp.push "$rv"
       (( i+=1+$JP_ATOM_LEN ))
     done
@@ -432,11 +432,10 @@ function jp.k {
     while (( i < len ));do
       if [[ "$k" == "${tos[$i]}" ]];then
         local val="${tos[$((i+2))]}"
+        (( argi++ ))
         local rv="JP_RV$argi"
         eval 'declare -ga '"$rv"='("$val")'
-        (( argi++ ))
         jp.push "$rv"
-        return 0
       fi
       (( i+=4 ))
     done
@@ -445,25 +444,84 @@ function jp.k {
   fi
 }
 
+function jp.k {
+  jp.pop
+  local -n tos="$JP_OUT"
+  local k="${tos[0]}"
+  [[ "$k" == '"'* ]] || jp.error "k requires a string" || return
+  if (( JP_STACKSIZE > 0 ));then
+    (( argi++ ))
+    local rv="JP_RV$argi" rvlen=1
+    eval 'declare -ga '"$rv"='("[")'
+    while (( JP_STACKSIZE ));do
+      jp.pop
+      local -n tos="$JP_OUT"
+      if [[ "${tos[0]}" == '{' ]];then
+        # handle nested data
+        local j=1 len=$(( ${#tos[@]} - 1 ))
+        while (( j < len ));do
+          if [[ "$k" == "${tos[$j]}" ]];then
+            (( j+=2 ))
+            jp.get_atom "$j"
+            eval "$rv"+='("${tos[@]:$j:$JP_ATOM_LEN}" ,)'
+            (( rvlen++ ))
+          else
+            (( j+=2 ))
+            jp.get_atom "$j"
+          fi
+          (( j+=1+JP_ATOM_LEN ))
+        done
+      else
+        jp.error "only objects have keys" || return
+      fi
+    done
+    # handle empty
+    if (( rvlen > 1 ));then
+      eval "$rv"[-1]=']'
+    else
+      eval "$rv"+="(']')"
+    fi
+    jp.push "$rv"
+  fi
+}
+
 function jp.i {
   jp.pop
   local -n tos="$JP_OUT"
   local i="${tos[0]}"
   [[ "$i" =~ ^[0-9]+$ ]] || jp.error "i requires an integer" || return
-  jp.pop
-  local -n tos="$JP_OUT"
-  if [[ "${tos[0]}" == '[' ]];then
-    local real_idx=$(( i*2+1 ))
-    if (( real_idx < "${#tos[@]}" ));then
-     local val="${tos[$real_idx]}"
-     local rv="JP_RV$argi"
-     eval 'declare -ga '"$rv"='("$val")'
-     (( argi++ ))
-     jp.push "$rv"
-     return 0
+  if (( JP_STACKSIZE > 0 ));then
+    (( argi++ ))
+    local rv="JP_RV$argi" rvlen=1
+    eval 'declare -ga '"$rv"='("[")'
+    while (( JP_STACKSIZE ));do
+      jp.pop
+      local -n tos="$JP_OUT"
+      if [[ "${tos[0]}" == '[' ]];then
+        # handle nested data
+        local j=1 real_i=0 len=$(( ${#tos[@]} - 1 ))
+        while (( j < len ));do
+          jp.get_atom "$j"
+          if [ $i -eq $real_i ];then
+            eval "$rv"+='(${tos[@]:$j:$JP_ATOM_LEN})'
+            eval "$rv"+='(,)'
+            (( rvlen++ ))
+            break;
+          fi
+          (( real_i++ ))
+          (( j+=1+$JP_ATOM_LEN ))
+        done
+      else
+        jp.error "i only works on arrays" || return
+      fi
+    done
+    # handle empty
+    if (( rvlen > 1 ));then
+      eval "$rv"[-1]=']'
+    else
+      eval "$rv"+="(']')"
     fi
-  else
-    jp.error "i only works on arrays" || return
+    jp.push "$rv"
   fi
 }
 
@@ -472,9 +530,9 @@ function jp.count {
   while (( JP_STACKSIZE ));do
     jp.pop
   done
+  (( argi++ ))
   local rv="JP_RV$argi"
   eval 'declare -ga '"$rv"='("$count")'
-  (( argi++ ))
   jp.push "$rv"
 }
 
@@ -504,17 +562,17 @@ function jp.++_str {
       jp.error "++ was expecting a '\"' but found '${tos[0]}'" || return
     fi
   done
+  (( argi++ ))
   local rv="JP_RV$argi"
   eval 'declare -ga '"$rv"='("\"$str\"")'
-  (( argi++ ))
   jp.push "$rv"
 }
 
 function jp.++_collection {
   local start="$1" end="$2"
+  (( argi++ ))
   local rv="JP_RV$argi"
   eval 'declare -ga '"$rv"='("$start")'
-  (( argi++ ))
   while (( JP_STACKSIZE ));do
     jp.pop
     local -n tos="$JP_OUT"
@@ -537,9 +595,9 @@ function jp.++_collection {
 }
 
 function jp.collect {
+  (( argi++ ))
   local rv="JP_RV$argi" sep=""
   eval 'declare -ga '"$rv"='("[")'
-  (( argi++ ))
   while (( JP_STACKSIZE ));do
     jp.pop
     local -n tos="$JP_OUT"
@@ -634,12 +692,12 @@ function jp.run {
       JP_LINE=0
       JP_COL=0
       arg_buf=("$arg")
+      (( argi++ ))
       local argtokens="argtokens$argi"
       eval "declare -a $argtokens=()"
       eval "declare -gn JP_TOKENS=$argtokens"
       jp.parse_json || return
       jp.push "$argtokens"
-      (( argi++ ))
     fi
   done
   JP_LINE="$in_line" # restore the stdin parse position

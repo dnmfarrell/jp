@@ -110,16 +110,16 @@ Pop an object off the stack and pushes an object for each key/value pair.
     {"name":"Lex Luthor"}
 
 ### jp.k
-Pops a key and an object off the stack and pushes the key's value (if found).
+Pops a key and then pops every object off the stack, accumulating all the key values (if found) in an array, pushes the array.
 
     echo '{"user":"dnmfarrell","email":"david@example.com"}' | jp '"email"' jp.k
-    "david@example.com"
+    ["david@example.com"]
 
 ### jp.i
-Pops an index and an array off the stack and pushes the value at the indexed location (if found).
+Pops an index and then pops every array off the stack, accumulating all the values (if found) in an array, pushes the array.
 
     echo '["JavaScript","PHP","Perl"]' | jp 1 jp.i
-    "PHP"
+    ["PHP"]
 
 ### jp.count
 Replaces the stack with a count of stack entries.
