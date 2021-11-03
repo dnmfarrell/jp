@@ -1,74 +1,131 @@
 jp
 ==
-`jp` is a JSON processor: it takes a stream of JSON text, parses it, optionally changes it, and then prints it on STDOUT. `jp` automatically detects multiline JSON, and JSON per line input.
-
+A JSON processor: it takes a stream of JSON text, parses it onto a stack, optionally transforms it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
 
 Dependencies
 ------------
 * Bash 4.3 or higher (namerefs)
 
+Parse
+-----
+jp parses the incoming JSON stream into an array of tokens that are pushed onto its stack.. If it detects any malformed JSON it will emit an error and exit non-zero.
 
-Parsing
--------
-`jp` passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from `jp` not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
+jp passes 317/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failure stems from jp not detecting a trailing null byte in a text stream which is not newline terminated. It detects any null byte encountered mid-stream though.
 
-Unlike some parsers, `jp` preserves object key order, and permits duplicate keys in objects.
+Unlike some parsers, jp preserves object key order, and permits duplicate keys in objects.
 
-Transforming
-------------
-N.B. transformations are a work in progress; I add new features as I need them. Feel free to add your own, they're easy to add and there is plenty of prior art to copy from.
+Transform
+---------
+The stack of parsed JSON tokens can be transformed with the following args:
 
-`jp` parses the incoming JSON stream into an array of tokens. If it detects any malformed JSON it will emit an error and exit non-zero.
+### JSON values
+Any json literal will be parsed and pushed onto the stack, here's a string:
 
-If parsing succeeds, it places the tokens on a stack, and reads args for transformation instructions. It recognizes the following commands:
+    echo '"Hello"' | jp '"World!"'
+    "World!"
+    "Hello"
 
-    - push: any json literal will be parsed and pushed onto the stack, e.g. "foo"
-    - pop: pops the top entry off the stack, deleting it
-    - swap: swaps the top two entries of the stack with each other
-    - dup: copies the value on the top of the stack making it the top two entries
-    - count: replaces the stack with a count of stack entries
-    - ++: concat strings, arrays or objects on the stack into one value
-    - collect: appends every stack entry to an array
-    - keys, vals: pop an object/array off the stack and push one key/value for each member
-    - pairs: pop an object off the stack and push an object pair for each member
-    - k: lookup the value of a given key in an object
-    - i: lookup the value of an array index
+### jp.pop
+Pops the top entry off the stack, deleting it:
 
-    # push a string onto the stack
-    echo '"Hello,"' | jp '" World!"'
-    " World!"
-    "Hello,"
+    echo '"Hello"' | jp jp.pop
+    # no output as stack is empty
 
-    # swap the two strings
-    echo '"Hello,"' | jp '" World!"' jp.swap
-    "Hello,"
-    " World!"
+### jp.swap
+Swaps the top two entries of the stack with each other
 
-    # swap and concat strings
-    echo '"Hello,"' | jp '" World!"' jp.swap jp.++
+    echo '"Hello"' | jp '"World!"' jp.swap
+    "Hello"
+    "World!"
+
+### jp.dup
+Copies the value on the top of the stack making it the top two entries
+
+    echo '"Hello"' | jp jp.dup
+    "Hello"
+    "Hello"
+
+### jp.++
+Concat strings, arrays or objects on the stack into one value.
+
+    echo '"Hello"' | jp '" World!"' jp.swap jp.++
     "Hello, World!"
 
-    # concat two objects
-    echo '{"foo":123}' | jp '{"bar":456}' jp.++
+    echo '["JavaScript","PHP","Perl"]' | jp '["Python"]' jp.++
+    [
+      "Python",
+      "JavaScript",
+      "PHP",
+      "Perl"
+    ]
+
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp '{"job":"villain"}' jp.++
     {
-      "bar": 456,
-      "foo": 123
+      "job": "villain",
+      "name": "Lex Luthor",
+      "email": "lex@example.com"
     }
 
-    # print an object's keys
-    echo '{"foo": 123, "bar": 456}' | jp jp.keys
-    "foo"
-    "bar"
+### jp.keys
+Pop an object off the stack and push one value for each key
 
-    # extract a value from an object
-    echo '{"user":"dnmfarrell","email":"foo@example.com"}' | jp '"email"' jp.k
-    "foo@example.com"
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp jp.keys
+    "email"
+    "name"
+
+### jp.vals
+Pop an object/array off the stack and push one value for each member
+
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp jp.vals
+    "lex@example.com"
+    "Lex Luthor"
+
+    echo '["octocat","atom","electron","api"]' | jp jp.vals
+    "api"
+    "electron"
+    "atom"
+    "octocat"
+
+### jp.collect
+Creates a new array, pops every stack entry appending it to the array and pushes the array.
+
+    echo '["octocat","atom","electron","api"]' | jp jp.vals jp.collect
+    [
+      "api",
+      "electron",
+      "atom",
+      "octocat"
+    ]
+
+### jp.pairs
+Pop an object off the stack and pushes an object for each key/value pair.
+
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp -P jp.pairs
+    {"email":"lex@example.com"}
+    {"name":"Lex Luthor"}
+
+### jp.k
+Pops a key and an object off the stack and pushes the key's value (if found).
+
+    echo '{"user":"dnmfarrell","email":"david@example.com"}' | jp '"email"' jp.k
+    "david@example.com"
+
+### jp.i
+Pops an index and an array off the stack and pushes the value at the indexed location (if found).
+
+    echo '["JavaScript","PHP","Perl"]' | jp 1 jp.i
+    "PHP"
+
+### jp.count
+Replaces the stack with a count of stack entries.
+
+    echo '["JavaScript","PHP","Perl"]' | jp jp.vals jp.count
+    3
 
 
-
-Printing
---------
-`jp` prints whatever data is left on the stack after it has processed args. By default `jp` pretty prints JSON when printing to the terminal. You can override this behavior with the  -p and -P options:
+Print
+-----
+jp prints whatever data is left on the stack after the transform stage. By default jp pretty prints JSON when printing to the terminal. You can override this behavior with the  -p and -P options:
 
     # pretty but piped
     echo '[1,2,3]' | jp -p | head
@@ -96,22 +153,22 @@ The default indent for pretty printing is two spaces but you can override it wit
 
 Use jp as a library
 -------------------
-All of jp's functions and global variables are namespaced under jp./JP. If `jp` is sourced, it will not execute the main function, and it can be used as a library by other scripts.
+All of jp's functions and global variables are namespaced under jp./JP. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
 
 
 Shell Native
 ------------
-`jp` is a shell native program, that is, it is written in the same programming language used to program the shell. This has some benefits:
+jp is a shell native program, that is, it is written in the same programming language used to program the shell. This has some benefits:
 
 1. Users of the program do not need to learn another DSL for transforming JSON. Args are just function names and json data.
-2. Being written in shell code in a single file, all users need to modify `jp` is a text editor. All they need to run it is Bash 4.3 or higher.
-3. Learning to program `jp` means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
-4. `jp` can be used as a program, and as a library to provide behavior to other shell scripts.
+2. Being written in shell code in a single file, all users need to modify jp is a text editor. All they need to run it is Bash 4.3 or higher.
+3. Learning to program jp means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
+4. jp can be used as a program, and as a library to provide behavior to other shell scripts.
 
 Being shell native has some downsides too:
 1. Shell code's limited support for programming concepts like data structures, return values and so on make it difficult to create apps in.
-2. Bash 4.3 or higher is needed to run `jp` because it uses namerefs.
-3. `jp` is not as fast as [jq](https://stedolan.github.io/jq/)!
+2. Bash 4.3 or higher is needed to run jp because it uses namerefs.
+3. jp is not as fast as [jq](https://stedolan.github.io/jq/)!
 4. Users have to be familiar with shell programming to get the most out of the program
 
 All that's needed to solve these issues is a better shell programming language which is really fast, portable and used everywhere.
@@ -119,8 +176,8 @@ All that's needed to solve these issues is a better shell programming language w
 
 Improvements
 ------------
-* `jp` is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will gladly recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
-* `jp` needs more tests!
+* jp is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will gladly recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
+* jp needs more tests!
 
 
 Other Shell JSON Parsers
