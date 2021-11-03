@@ -29,7 +29,7 @@ If parsing succeeds, it places the tokens on a stack, and reads args for transfo
     - count: replaces the stack with a count of stack entries
     - ++: concat strings, arrays or objects on the stack into one value
     - collect: appends every stack entry to an array
-    - keys, values: pop an object off the stack and push one key/value for each member
+    - keys, vals: pop an object/array off the stack and push one key/value for each member
     - pairs: pop an object off the stack and push an object pair for each member
     - k: lookup the value of a given key in an object
     - i: lookup the value of an array index

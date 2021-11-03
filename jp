@@ -328,7 +328,7 @@ function jp.keys {
   fi
 }
 
-function jp.values {
+function jp.vals {
   jp.pop
   local -n tos="$JP_OUT"
   if [[ "${tos[0]}" == '{' ]];then
@@ -341,8 +341,18 @@ function jp.values {
       jp.push "$rv"
       (( i+=4 ))
     done
+  elif [[ "${tos[0]}" == '[' ]];then
+    local i=1 len=$(("${#tos[@]}"-1))
+    while (( i < len ));do
+      local val="${tos[$i]}"
+      local rv="JP_RV$argi"
+      eval 'declare -ga '"$rv"='("$val")'
+      (( argi++ ))
+      jp.push "$rv"
+      (( i+=2 ))
+    done
   else
-    jp.error "values only works on objects" || return
+    jp.error "values only works on objects/arrays" || return
   fi
 }
 
