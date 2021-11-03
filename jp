@@ -7,7 +7,6 @@
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 declare JP_LINE=0 JP_COL=0 JP_C JP_IN JP_OUT JP_TOKENS JP_INDENT="  " JP_PRETTY JP_SILENT
-shopt -s extglob
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -404,7 +403,7 @@ function jp.i {
   jp.pop
   local -n tos="$JP_OUT"
   local i="${tos[0]}"
-  [[ "$i" == +([[:digit:]]) ]] || error "i requires an integer" || return
+  [[ "$i" =~ ^[0-9]+$ ]] || jp.error "i requires an integer" || return
   jp.pop
   local -n tos="$JP_OUT"
   if [[ "${tos[0]}" == '[' ]];then
