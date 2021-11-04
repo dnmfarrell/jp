@@ -46,33 +46,33 @@ Any json literal will be parsed and pushed onto the stack, here's a string:
     "World!"
     "Hello"
 
-### jp.pop
+### .pop
 Pops the top entry off the stack, deleting it.
 
-    echo '"Hello"' | jp jp.pop
+    echo '"Hello"' | jp .pop
     # no output as stack is empty
 
-### jp.swap
+### .swap
 Swaps the top two items of the stack with each other.
 
-    echo '"Hello"' | jp '"World!"' jp.swap
+    echo '"Hello"' | jp '"World!"' .swap
     "Hello"
     "World!"
 
-### jp.dup
+### .dup
 Copies the value on the top of the stack making it the top two items.
 
-    echo '"Hello"' | jp jp.dup
+    echo '"Hello"' | jp .dup
     "Hello"
     "Hello"
 
-### jp.++
+### .++
 Concat strings, arrays or objects on the stack into one value.
 
-    echo '"Hello"' | jp '" World!"' jp.swap jp.++
+    echo '"Hello"' | jp '" World!"' .swap .++
     "Hello, World!"
 
-    echo '["JavaScript","PHP","Perl"]' | jp '["Python"]' jp.++
+    echo '["JavaScript","PHP","Perl"]' | jp '["Python"]' .++
     [
       "Python",
       "JavaScript",
@@ -80,37 +80,37 @@ Concat strings, arrays or objects on the stack into one value.
       "Perl"
     ]
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp '{"job":"villain"}' jp.++
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp '{"job":"villain"}' .++
     {
       "job": "villain",
       "name": "Lex Luthor",
       "email": "lex@example.com"
     }
 
-### jp.keys
+### .keys
 Pop an object off the stack and push one value for each key.
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp jp.keys
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp .keys
     "email"
     "name"
 
-### jp.vals
+### .vals
 Pop an object/array off the stack and push one value for each item.
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp jp.vals
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp .vals
     "lex@example.com"
     "Lex Luthor"
 
-    echo '["octocat","atom","electron","api"]' | jp jp.vals
+    echo '["octocat","atom","electron","api"]' | jp .vals
     "api"
     "electron"
     "atom"
     "octocat"
 
-### jp.collect
-Creates a new array, pops every stack entry appending it to the array and pushes the array. Here `jp.vals` and `jp.collect` combine to reverse the input array:
+### .collect
+Creates a new array, pops every stack entry appending it to the array and pushes the array. Here `.vals` and `.collect` combine to reverse the input array:
 
-    echo '["octocat","atom","electron","api"]' | jp jp.vals jp.collect
+    echo '["octocat","atom","electron","api"]' | jp .vals .collect
     [
       "api",
       "electron",
@@ -118,42 +118,42 @@ Creates a new array, pops every stack entry appending it to the array and pushes
       "octocat"
     ]
 
-### jp.drop
+### .drop
 Pops the top entry off the stack to get a count. Then pops that many items, deleting them.
 
-    echo '[1,2,3]' | jp jp.vals 1 jp.drop
+    echo '[1,2,3]' | jp .vals 1 .drop
     2
     1
 
-### jp.pairs
+### .pairs
 Pop an object off the stack and pushes an object for each key/value pair.
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp -P jp.pairs
+    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp -P .pairs
     {"email":"lex@example.com"}
     {"name":"Lex Luthor"}
 
-### jp.k
+### .k
 Pops a key and then pops every object off the stack, accumulating all the key values (if found) in an array, pushes the array.
 
-    echo '{"user":"dnmfarrell","email":"david@example.com"}' | jp '"email"' jp.k
+    echo '{"user":"dnmfarrell","email":"david@example.com"}' | jp '"email"' .k
     ["david@example.com"]
 
-### jp.i
+### .i
 Pops an index and then pops every array off the stack, accumulating all the values (if found) in an array, pushes the array.
 
-    echo '["JavaScript","PHP","Perl"]' | jp 1 jp.i
+    echo '["JavaScript","PHP","Perl"]' | jp 1 .i
     ["PHP"]
 
-### jp.lt jp.le jp.eq jp.ne jp.ge jp.gt
+### .lt .le .eq .ne .ge .gt
 Filter strings/numbers. Pops the first value off the stack to use as an operand, then pops all remaining values off the stack, accumulating any which pass the comparison in an array, pushes the array.
 
-    echo '[1,2,3]' | jp -P jp.vals 2 jp.le
+    echo '[1,2,3]' | jp -P .vals 2 .le
     [3,2]
 
-### jp.count
+### .count
 Replaces the stack with a count of stack items.
 
-    echo '["JavaScript","PHP","Perl"]' | jp jp.vals jp.count
+    echo '["JavaScript","PHP","Perl"]' | jp .vals .count
     3
 
 
