@@ -2,17 +2,18 @@ jp
 ==
 A JSON processor: it takes a stream of JSON text, parses it onto a stack, optionally transforms it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
 
-    echo '[{"id":1},{"id":2}]' | jp jp.vals '"id"' jp.k jp.vals
+    jp [options] [arg ...]
+
+    echo '[{"id":1},{"id":2}]' | jp .vals '"id"' .k .vals
     1
     2
-
 
 Options
 -------
 
     -i  set indent value (default is two spaces)
     -n  no input, just process args
-    -p  pretty print output (default to tty)
+    -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
     -s  silent disable output
     -t  trace mode
@@ -39,42 +40,41 @@ Unlike some parsers, jp preserves object key order, and permits duplicate keys i
 
 Transform
 ---------
-The stack of parsed JSON tokens can be transformed with the following args:
+The stack of parsed JSON tokens can be transformed with args:
 
 ### JSON values
-Any json literal will be parsed and pushed onto the stack, here's a string:
+Any JSON literal will be parsed and pushed onto the stack, here's a string:
 
-    echo '"Hello"' | jp '"World!"'
-    "World!"
-    "Hello"
+    jp -n '"howdy"'
+    "howdy"
 
 ### .pop
-Pops the top entry off the stack, deleting it.
+Pops the top item off the stack, deleting it.
 
-    echo '"Hello"' | jp .pop
+    jp -n 1 .pop
     # no output as stack is empty
 
 ### .swap
 Swaps the top two items of the stack with each other.
 
-    echo '"Hello"' | jp '"World!"' .swap
+    jp -n '"Hello"' '"World!"' .swap
     "Hello"
     "World!"
 
 ### .dup
 Copies the value on the top of the stack making it the top two items.
 
-    echo '"Hello"' | jp .dup
+    jp -n '"Hello"' .swap
     "Hello"
     "Hello"
 
 ### .++
-Concat strings, arrays or objects on the stack into one value.
+Concatenate strings, arrays or objects on the stack into one value.
 
-    echo '"Hello"' | jp '" World!"' .swap .++
+    jp -n '"Hello,"' '" World!"' .swap .++
     "Hello, World!"
 
-    echo '["JavaScript","PHP","Perl"]' | jp '["Python"]' .++
+    jp -n '["JavaScript","PHP","Perl"]' '["Python"]' .++
     [
       "Python",
       "JavaScript",
@@ -82,7 +82,7 @@ Concat strings, arrays or objects on the stack into one value.
       "Perl"
     ]
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp '{"job":"villain"}' .++
+    jp -n '{"name":"Lex Luthor", "email":"lex@example.com"}' '{"job":"villain"}' .++
     {
       "job": "villain",
       "name": "Lex Luthor",
@@ -92,27 +92,27 @@ Concat strings, arrays or objects on the stack into one value.
 ### .keys
 Pop an object off the stack and push one value for each key.
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp .keys
+    jp -n '{"name":"Lex Luthor", "email":"lex@example.com"}' .keys
     "email"
     "name"
 
 ### .vals
 Pop an object/array off the stack and push one value for each item.
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp .vals
+    jp -n '{"name":"Lex Luthor", "email":"lex@example.com"}' .vals
     "lex@example.com"
     "Lex Luthor"
 
-    echo '["octocat","atom","electron","api"]' | jp .vals
+    jp -n '["octocat","atom","electron","api"]' .vals
     "api"
     "electron"
     "atom"
     "octocat"
 
 ### .collect
-Creates a new array, pops every stack entry appending it to the array and pushes the array. Here `.vals` and `.collect` combine to reverse the input array:
+Creates a new array, pops every stack item appending it to the array and pushes the array.
 
-    echo '["octocat","atom","electron","api"]' | jp .vals .collect
+    jp -n '"octocat"' '"atom"' '"electron"' '"api"' .collect
     [
       "api",
       "electron",
@@ -120,42 +120,51 @@ Creates a new array, pops every stack entry appending it to the array and pushes
       "octocat"
     ]
 
-### .drop
-Pops the top entry off the stack to get a count. Then pops that many items, deleting them.
+Combine with `.vals` to reverse an array:
 
-    echo '[1,2,3]' | jp .vals 1 .drop
-    2
-    1
+    jp -n '["octocat","atom","electron","api"]' .vals .collect
+    [
+      "octocat",
+      "atom",
+      "electron",
+      "api"
+    ]
+
+### .drop
+Pops the top item off the stack to get a count. Then pops that many items, deleting them.
+
+    jp -n '"foo"' '"bar"' 1 .drop
+    "foo"
 
 ### .pairs
 Pop an object off the stack and pushes an object for each key/value pair.
 
-    echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp -P .pairs
+    jp -nP '{"name":"Lex Luthor", "email":"lex@example.com"}' .pairs
     {"email":"lex@example.com"}
     {"name":"Lex Luthor"}
 
 ### .k
-Pops a key and then pops every object off the stack, accumulating all the key values (if found) in an array, pushes the array.
+Pops a string and then pops every item off the stack, accumulating all the key values (if found) in an array, pushes the array.
 
-    echo '{"user":"dnmfarrell","email":"david@example.com"}' | jp '"email"' .k
+    jp -nP '{"user":"dnmfarrell","email":"david@example.com"}' '"email"' .k
     ["david@example.com"]
 
 ### .i
-Pops an index and then pops every array off the stack, accumulating all the values (if found) in an array, pushes the array.
+Pops an integer off the stack to use as an index and then pops every array off the stack, accumulating all the values (if found) in an array, pushes the array.
 
-    echo '["JavaScript","PHP","Perl"]' | jp 1 .i
+    jp -nP '["JavaScript","PHP","Perl"]' 1 .i
     ["PHP"]
 
 ### .lt .le .eq .ne .ge .gt
 Filter strings/numbers. Pops the first value off the stack to use as an operand, then pops all remaining values off the stack, accumulating any which pass the comparison in an array, pushes the array.
 
-    echo '[1,2,3]' | jp -P .vals 2 .le
-    [3,2]
+    jp -nP 1 2 3 2 .le
+    [2,1] # less than or equal to 2
 
 ### .count
 Replaces the stack with a count of stack items.
 
-    echo '["JavaScript","PHP","Perl"]' | jp .vals .count
+    jp -n '"JavaScript"' '"PHP"' '"Perl"' .count
     3
 
 
@@ -164,7 +173,7 @@ Print
 jp prints whatever data is left on the stack after the transform stage. By default jp pretty prints JSON when printing to the terminal. You can override this behavior with the  -p and -P options:
 
     # pretty but piped
-    echo '[1,2,3]' | jp -p | head
+    jp -np [1,2,3] | head
     [
       1,
       2,
@@ -172,25 +181,32 @@ jp prints whatever data is left on the stack after the transform stage. By defau
     ]
 
     # terse but in the terminal
-    echo [1,2,3] | jp -P
+    jp -P [1,2,3]
     [1,2,3]
 
 The default indent for pretty printing is two spaces but you can override it with the -i option:
 
-    # tab indent - quoting to protect whitespace is a recurring theme in shell code
-    echo '{"foo":[1,2,3]}' | jp -i '     '
+    # tab indent
+    jp -n -i '	' '{"foo":[1,2,3]}'
     {
-            "foo": [
-                    1,
-                    2,
-                    3
-            ]
+    	"foo": [
+    		1,
+    		2,
+    		3
+    	]
     }
 
+If you just want to use jp as a JSON validator and don't need the output, use silent mode `-s` and check the return code is zero:
+
+    jp -ns [1,2,3] && echo "valid!"
+
+N.B. errors are emitted on stderr, to silence them, redirect:
+
+    jp -ns [1,2,] 2>/dev/null # no error output
 
 Use jp as a library
 -------------------
-All of jp's functions and global variables are namespaced under jp./JP. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
+jp is a [modulino](https://blog.dnmfarrell.com/post/modulinos-in-bash/). All of its functions and global variables are namespaced under `jp.` or `JP_`. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
 
 Run test suite
 --------------
@@ -230,7 +246,7 @@ Shell Native
 ------------
 jp is a shell native program, that is, it is written in the same programming language used to program the shell. This has some benefits:
 
-1. Users of the program do not need to learn another DSL for transforming JSON. Args are just function names and json data.
+1. Users of the program do not need to learn another DSL for transforming JSON. Args are just function names and JSON data.
 2. Being written in shell code in a single file, all users need to modify jp is a text editor. All they need to run it is Bash 4.3 or higher.
 3. Learning to program jp means learning shell, which is a useful skill that users can employ to build their own programs, understand the command line better, and so on.
 4. jp can be used as a program, and as a library to provide behavior to other shell scripts.
