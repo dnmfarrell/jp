@@ -6,7 +6,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE=0 JP_COL=0 JP_C JP_IN JP_OUT JP_TOKENS JP_INDENT="  " JP_PRETTY JP_SILENT JP_ATOM_LEN
+declare JP_LINE=0 JP_COL=0 JP_C JP_IN JP_OUT JP_TOKENS JP_INDENT="  " JP_PRETTY JP_SILENT JP_ATOM_LEN JP_INPUT=1
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -730,11 +730,13 @@ function jp.uglyprint {
 # BEGIN MAIN
 function jp.run {
   # parse stdin
-  declare -gn JP_BUF=JP_IN # set the parse buffer to stdin
-  declare -a tokens=()
-  declare -gn JP_TOKENS=tokens
-  jp.parse_json || return
-  jp.push tokens
+  if [ $JP_INPUT ];then
+    declare -gn JP_BUF=JP_IN # set the parse buffer to stdin
+    declare -a tokens=()
+    declare -gn JP_TOKENS=tokens
+    jp.parse_json || return
+    jp.push tokens
+  fi
 
   # process args
   local in_line="$JP_LINE" in_col="$JP_COL" # save stdin parse position
@@ -760,7 +762,7 @@ function jp.run {
   JP_COL="$in_col"
 
   # print
-  [[ $JP_SILENT ]] && return 0
+  [ $JP_SILENT ] && return 0
   while [[ $JP_STACKSIZE > 0 ]];do
     jp.pop || return
     if [[ $JP_PRETTY ]];then
@@ -774,8 +776,9 @@ function jp.run {
 
 function jp.main {
   [[ -t 1 ]] && JP_PRETTY=1 # default to pretty for a tty
-  while getopts ":pPti:s" opt; do
+  while getopts ":npPsti:" opt; do
     case "$opt" in
+      'n') JP_INPUT=;;
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
       't') trap '(jp.trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
@@ -784,14 +787,14 @@ function jp.main {
     esac
     shift $((OPTIND-1))
   done
-
-  IFS=$'\n' read -rd '' -a JP_IN
+  [ $JP_INPUT ] && IFS=$'\n' read -rd '' -a JP_IN
   while :;do
     jp.run "$@" || return
     (( JP_LINE+1 < "${#JP_IN[@]}" )) && continue # more lines to parse
     break
   done
-  jp.detect_nullbyte
+  [ $JP_INPUT ] && jp.detect_nullbyte
+  return 0
 }
 [[ "$BASH_SOURCE" == "$0" ]] && jp.main "$@"
 # END MAIN

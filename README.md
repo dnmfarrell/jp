@@ -11,9 +11,11 @@ Options
 -------
 
     -i  set indent value (default is two spaces)
+    -n  no input, just process args
     -p  pretty print output (default to tty)
     -P  force plain output (default to non-tty)
-    -t  trace mode (debug)
+    -s  silent disable output
+    -t  trace mode
 
 
 Dependencies
