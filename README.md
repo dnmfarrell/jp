@@ -2,9 +2,24 @@ jp
 ==
 A JSON processor: it takes a stream of JSON text, parses it onto a stack, optionally transforms it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
 
+    echo '[{"id":1},{"id":2}]' | jp jp.vals '"id"' jp.k jp.vals
+    1
+    2
+
+
+Options
+-------
+
+    -i  set indent value (default is two spaces)
+    -p  pretty print output (default to tty)
+    -P  force plain output (default to non-tty)
+    -t  trace mode (debug)
+
+
 Dependencies
 ------------
 * Bash 4.3 or higher (namerefs)
+
 
 Parse
 -----
@@ -18,6 +33,7 @@ jp passes 314/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) p
      i_structure_UTF-8_BOM_empty_object.json
 
 Unlike some parsers, jp preserves object key order, and permits duplicate keys in objects.
+
 
 Transform
 ---------
@@ -92,7 +108,7 @@ Pop an object/array off the stack and push one value for each member
     "octocat"
 
 ### jp.collect
-Creates a new array, pops every stack entry appending it to the array and pushes the array.
+Creates a new array, pops every stack entry appending it to the array and pushes the array. Here `jp.vals` and `jp.collect` combine to reverse the input array:
 
     echo '["octocat","atom","electron","api"]' | jp jp.vals jp.collect
     [
@@ -120,6 +136,12 @@ Pops an index and then pops every array off the stack, accumulating all the valu
 
     echo '["JavaScript","PHP","Perl"]' | jp 1 jp.i
     ["PHP"]
+
+### jp.lt jp.le jp.eq jp.ne jp.ge jp.gt
+Filter strings/numbers. Pops the first value off the stack to use as an operand, then pops all remaining values off the stack, accumulating any which pass the comparison in an array, pushes the array.
+
+    echo '[1,2,3]' | jp -P jp.vals 2 jp.le
+    [3,2]
 
 ### jp.count
 Replaces the stack with a count of stack entries.
@@ -155,6 +177,7 @@ The default indent for pretty printing is two spaces but you can override it wit
                     3
             ]
     }
+
 
 Use jp as a library
 -------------------

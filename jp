@@ -607,6 +607,75 @@ function jp.collect {
   eval "$rv"+='("]")'
   jp.push "$rv"
 }
+
+function jp._test {
+  local num_op="$1" str_op="$2"
+  jp.pop
+  local -n tos="$JP_OUT"
+  local operand="$tos"
+  local mode
+  if [ ${operand[0]:0:1} = '"' ];then
+    mode="str"
+  elif [[ ${tos[0]:0:1} == [[:digit:]-] ]];then
+    mode="num"
+  else
+      jp.error "can only compare to strings/numbers but saw '$tos'" || return
+  fi
+  (( argi++ ))
+  local rv="JP_RV$argi" rvlen=1
+  eval 'declare -ga '"$rv"='("[")'
+  while (( JP_STACKSIZE ));do
+    jp.pop
+    local -n tos="$JP_OUT"
+    if [ "$mode" = 'str' ] && [ ${tos[0]:0:1} = '"' ];then
+      if [ $operand $str_op $tos ];then
+        eval "$rv"+='($tos)'
+        eval "$rv"+='(,)'
+        (( rvlen++ ))
+      fi
+    elif [ "$mode" = 'num' ] && [[ ${tos[0]:0:1} == [[:digit:]-] ]];then
+      if [ $operand $num_op $tos ];then
+        eval "$rv"+='($tos)'
+        eval "$rv"+='(,)'
+        (( rvlen++ ))
+      fi
+    else
+      jp.error "can only filter strings and numbers but saw '$tos'" || return
+    fi
+  done
+  # handle empty
+  if (( rvlen > 1 ));then
+    eval "$rv"[-1]=']'
+  else
+    eval "$rv"+="(']')"
+  fi
+  jp.push "$rv"
+}
+
+function jp.eq {
+  jp._test "-eq" "="
+}
+
+function jp.ne {
+  jp._test "-ne" "!="
+}
+
+function jp.gt {
+  jp._test "-gt" ">"
+}
+
+function jp.ge {
+  jp._test "-ge" ">"
+}
+
+function jp.lt {
+  jp._test "-lt" "<"
+}
+
+function jp.le {
+  jp._test "-le" "<"
+}
+
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
