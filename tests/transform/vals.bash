@@ -2,21 +2,21 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | jp .pop .vals 2>/dev/null)
+$(echo 1 | ./jp .pop .vals 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "vals on empty stack errors"
 else
   fail "vals on empty stack does not error"
 fi
 
-$(echo 1 | jp .vals 2>/dev/null)
+$(echo 1 | ./jp .vals 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "vals on non-object stack errors"
 else
   fail "vals on non-object stack does not error"
 fi
 
-emptyobj=$(echo '{}' | jp .vals)
+emptyobj=$(echo '{}' | ./jp .vals)
 if [ "$emptyobj" = '' ];then
   pass "vals on empty object returns nothing"
 else
@@ -24,7 +24,7 @@ else
   fail "vals on empty object doesn't return nothing: $emptyobjesc"
 fi
 
-twoobj=$(echo '{"a":1,"b":2}' | jp .vals)
+twoobj=$(echo '{"a":1,"b":2}' | ./jp .vals)
 if [ "$twoobj" = $'2\n1' ];then
   pass "vals on object returns two vals"
 else
@@ -32,7 +32,7 @@ else
   fail "vals on object doesn't return two vals: $twoobjesc"
 fi
 
-nestobj=$(echo '{"a":[null,"1",{"b":[1]}],"c":2}' | jp .vals)
+nestobj=$(echo '{"a":[null,"1",{"b":[1]}],"c":2}' | ./jp .vals)
 if [ "$nestobj" = $'2\n[null,"1",{"b":[1]}]' ];then
   pass "vals on nested object returns expected"
 else
@@ -40,7 +40,7 @@ else
   fail "vals on nested object doesn't return expected: $nestobjesc"
 fi
 
-emptyarr=$(echo '[]' | jp .vals)
+emptyarr=$(echo '[]' | ./jp .vals)
 if [ "$emptyarr" = '' ];then
   pass "vals on empty arrect returns nothing"
 else
@@ -48,7 +48,7 @@ else
   fail "vals on empty arrect doesn't return nothing: $emptyarresc"
 fi
 
-twoarr=$(echo '[1,2]' | jp .vals)
+twoarr=$(echo '[1,2]' | ./jp .vals)
 if [ "$twoarr" = $'2\n1' ];then
   pass "vals on array returns two vals"
 else
@@ -56,7 +56,7 @@ else
   fail "vals on array doesn't return two vals: $twoarresc"
 fi
 
-nestarr=$(echo '[["a"],true,[[{"b":1}],null]]' | jp .vals)
+nestarr=$(echo '[["a"],true,[[{"b":1}],null]]' | ./jp .vals)
 if [ "$nestarr" = $'[[{"b":1}],null]\ntrue\n["a"]' ];then
   pass "vals on nested array returns expected"
 else

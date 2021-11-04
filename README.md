@@ -192,6 +192,39 @@ Use jp as a library
 -------------------
 All of jp's functions and global variables are namespaced under jp./JP. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
 
+Run test suite
+--------------
+Tests are shell scripts which emit [TAP](https://testanything.org/) output. You can run them with [prove](https://perldoc.perl.org/prove) (comes with Perl). I wrote a blog [post](https://blog.dnmfarrell.com/post/unit-testing-shell-scripts/) about this setup.
+
+From the root project directory:
+
+    prove $(find tests/ -name '*.bash')
+    tests/parse/string-unicode.bash .. ok
+    tests/parse/array.bash ........... ok
+    tests/parse/null.bash ............ ok
+    tests/parse/halts.bash ........... ok
+    tests/transform/count.bash ....... ok
+    tests/transform/push.bash ........ ok
+    tests/transform/drop.bash ........ ok
+    tests/transform/keys.bash ........ ok
+    tests/transform/pop.bash ......... ok
+    tests/transform/collect.bash ..... ok
+    tests/transform/dup.bash ......... ok
+    tests/transform/k.bash ........... ok
+    tests/transform/i.bash ........... ok
+    tests/transform/pairs.bash ....... ok
+    tests/transform/swap.bash ........ ok
+    tests/transform/vals.bash ........ ok
+    tests/transform/++.bash .......... ok
+    tests/transform/test.bash ........ ok
+    tests/print/plain.bash ........... ok
+    tests/print/indent.bash .......... ok
+    tests/print/pretty.bash .......... ok
+    tests/print/silent.bash .......... ok
+    All tests successful.
+    Files=22, Tests=102,  7 wallclock secs ( 0.05 usr  0.02 sys +  6.28 cusr  0.19 csys =  6.54 CPU)
+    Result: PASS
+
 
 Shell Native
 ------------
@@ -214,7 +247,6 @@ All that's needed to solve these issues is a better shell programming language w
 Improvements
 ------------
 * jp is a recursive descent parser; this means it doesn't need to store a lot of state, it just traverses the data structure. The downside is it will gladly recurse down any data structure until the stack becomes full and it crashes. On my computer this happens after recursing through ~2000 nested arrays. A different parsing strategy would be more robust.
-* jp needs more tests!
 
 
 Other Shell JSON Parsers

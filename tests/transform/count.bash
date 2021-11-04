@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-empty=$(echo '{}' | jp .pop .count)
+empty=$(echo '{}' | ./jp .pop .count)
 if [ "$empty" = '0' ];then
   pass "count on empty stack returns 0"
 else
@@ -10,7 +10,7 @@ else
   fail "count on empty stack returns: $emptyesc"
 fi
 
-one=$(echo '{}' | jp .count)
+one=$(echo '{}' | ./jp .count)
 if [ "$one" = '1' ];then
   pass "count on one stack returns 1"
 else
@@ -18,7 +18,7 @@ else
   fail "count on one stack returns: $oneesc"
 fi
 
-five=$(echo 1 | jp 2 3 4 5 .count)
+five=$(echo 1 | ./jp 2 3 4 5 .count)
 if [ "$five" = '5' ];then
   pass "count on five stack returns 5"
 else

@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-empty=$(jp -ns)
+empty=$(./jp -ns)
 if [ "$empty" = '' ];then
   pass "silent mode emits nothing with empty stack"
 else
@@ -10,7 +10,7 @@ else
   fail "silent mode emits nothing with empty stack: $emptyesc"
 fi
 
-arrays=$(cat tests/share/arrays.jsonp | jp -s)
+arrays=$(cat tests/share/arrays.jsonp | ./jp -s)
 if [ "$arrays" = '' ];then
   pass "silent mode emits nothing with arrays stack"
 else

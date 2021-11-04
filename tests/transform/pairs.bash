@@ -2,21 +2,21 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | jp .pop .pairs 2>/dev/null)
+$(echo 1 | ./jp .pop .pairs 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "pairs on empty stack errors"
 else
   fail "pairs on empty stack does not error"
 fi
 
-$(echo 1 | jp .pairs 2>/dev/null)
+$(echo 1 | ./jp .pairs 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "pairs on non-object stack errors"
 else
   fail "pairs on non-object stack does not error"
 fi
 
-emptyobj=$(echo '{}' | jp .pairs)
+emptyobj=$(echo '{}' | ./jp .pairs)
 if [ "$emptyobj" = '' ];then
   pass "pairs on empty object returns nothing"
 else
@@ -24,7 +24,7 @@ else
   fail "pairs on empty object doesn't return empty:"
 fi
 
-twoobj=$(echo '{"a":1,"b":2}' | jp .pairs)
+twoobj=$(echo '{"a":1,"b":2}' | ./jp .pairs)
 if [ "$twoobj" = $'{"b":2}\n{"a":1}' ];then
   pass "pairs on object returns two pairs"
 else
@@ -32,7 +32,7 @@ else
   fail "pairs on object doesn't return two pairs: $twoobjesc"
 fi
 
-nestobj=$(echo '{"a":[null,"1",{"b":[1]}],"c":2}' | jp .pairs)
+nestobj=$(echo '{"a":[null,"1",{"b":[1]}],"c":2}' | ./jp .pairs)
 if [ "$nestobj" = $'{"c":2}\n{"a":[null,"1",{"b":[1]}]}' ];then
   pass "pairs on nested object returns expected"
 else

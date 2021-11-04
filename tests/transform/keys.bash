@@ -2,21 +2,21 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | jp .pop .keys 2>/dev/null)
+$(echo 1 | ./jp .pop .keys 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "keys on empty stack errors"
 else
   fail "keys on empty stack does not error"
 fi
 
-$(echo 1 | jp .keys 2>/dev/null)
+$(echo 1 | ./jp .keys 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "keys on non-object stack errors"
 else
   fail "keys on non-object stack does not error"
 fi
 
-empty=$(echo '{}' | jp .keys)
+empty=$(echo '{}' | ./jp .keys)
 if [ "$empty" = '' ];then
   pass "keys on empty returns nothing"
 else
@@ -24,7 +24,7 @@ else
   fail "keys on empty doesn't return nothing: $emptyesc"
 fi
 
-two=$(echo '{"a":1,"b":2}' | jp .keys)
+two=$(echo '{"a":1,"b":2}' | ./jp .keys)
 if [ "$two" = $'"b"\n"a"' ];then
   pass "keys returns two"
 else

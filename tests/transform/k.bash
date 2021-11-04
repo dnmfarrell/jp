@@ -2,28 +2,28 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | jp .pop .k 2>/dev/null)
+$(echo 1 | ./jp .pop .k 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "k on empty stack errors"
 else
   fail "k on empty stack does not error"
 fi
 
-$(echo 1 | jp {} "f" .k 2>/dev/null)
+$(echo 1 | ./jp {} "f" .k 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "k on non-object stack errors"
 else
   fail "k on non-object stack does not error"
 fi
 
-$(echo 1 | jp .k 2>/dev/null)
+$(echo 1 | ./jp .k 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "k non-string key errors"
 else
   fail "k non-string key does not error"
 fi
 
-empty=$(echo '{}' | jp '"f"' .k)
+empty=$(echo '{}' | ./jp '"f"' .k)
 if [ "$empty" = '[]' ];then
   pass "k on empty object returns []"
 else
@@ -31,7 +31,7 @@ else
   fail "k on empty object doesn't return []: $emptyesc"
 fi
 
-nomatch=$(echo '{"a":1}' | jp '"f"' .k)
+nomatch=$(echo '{"a":1}' | ./jp '"f"' .k)
 if [ "$nomatch" = '[]' ];then
   pass "k unmatched returns []"
 else
@@ -39,7 +39,7 @@ else
   fail "k on unmatched doesn't return []: $nomatchesc"
 fi
 
-onematch=$(echo '{"a":1}' | jp '"a"' .k)
+onematch=$(echo '{"a":1}' | ./jp '"a"' .k)
 if [ "$onematch" = '[1]' ];then
   pass "k one match returns expected"
 else
@@ -47,7 +47,7 @@ else
   fail "k on unmatched doesn't return expected: $onematchesc"
 fi
 
-multimatch=$(echo '{"a":1,"a":2}' | jp '{"a":3}' '"a"' .k)
+multimatch=$(echo '{"a":1,"a":2}' | ./jp '{"a":3}' '"a"' .k)
 if [ "$multimatch" = '[3,1,2]' ];then
   pass "k multi match returns expected"
 else

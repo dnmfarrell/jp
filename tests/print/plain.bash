@@ -3,7 +3,7 @@ source "test-bootstrap.bash"
 IFS=
 
 expect='[1,2,3]'
-arrays=$(jp -n $expect)
+arrays=$(./jp -n $expect)
 if [ "$arrays" = $expect ];then
   pass "plain output is default on non-tty"
 else
@@ -13,7 +13,7 @@ fi
 
 which socat 1>/dev/null # to simulate tty
 if [ $? -eq 0 ];then
-  output=$(socat -u -t0 EXEC:"jp -nP $expect",pty -)
+  output=$(socat -u -t0 EXEC:"./jp -nP $expect",pty -)
   if [ "$output" = $expect$'\r' ];then
     pass "-P forces plain output"
   else
