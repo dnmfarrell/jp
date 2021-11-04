@@ -292,6 +292,20 @@ function jp.pop {
   JP_STACK[$JP_STACKSIZE]=
 }
 
+function jp.drop {
+  jp.pop
+  local -n tos="$JP_OUT"
+  if [[ ${tos[0]:0:1} == [[:digit:]] ]];then
+    while (( tos > 0 ));do
+      (( JP_STACKSIZE == 0 )) && break
+      jp.pop
+      (( tos-- ))
+    done
+  else
+    jp.error "can only drop a positive number of items but saw '$tos'" || return
+  fi
+}
+
 function jp.push {
   JP_STACK[$JP_STACKSIZE]="$1"
   (( JP_STACKSIZE++ ))

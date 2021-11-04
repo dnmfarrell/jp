@@ -47,20 +47,20 @@ Any json literal will be parsed and pushed onto the stack, here's a string:
     "Hello"
 
 ### jp.pop
-Pops the top entry off the stack, deleting it:
+Pops the top entry off the stack, deleting it.
 
     echo '"Hello"' | jp jp.pop
     # no output as stack is empty
 
 ### jp.swap
-Swaps the top two entries of the stack with each other
+Swaps the top two items of the stack with each other.
 
     echo '"Hello"' | jp '"World!"' jp.swap
     "Hello"
     "World!"
 
 ### jp.dup
-Copies the value on the top of the stack making it the top two entries
+Copies the value on the top of the stack making it the top two items.
 
     echo '"Hello"' | jp jp.dup
     "Hello"
@@ -88,14 +88,14 @@ Concat strings, arrays or objects on the stack into one value.
     }
 
 ### jp.keys
-Pop an object off the stack and push one value for each key
+Pop an object off the stack and push one value for each key.
 
     echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp jp.keys
     "email"
     "name"
 
 ### jp.vals
-Pop an object/array off the stack and push one value for each member
+Pop an object/array off the stack and push one value for each item.
 
     echo '{"name":"Lex Luthor", "email":"lex@example.com"}' | jp jp.vals
     "lex@example.com"
@@ -117,6 +117,13 @@ Creates a new array, pops every stack entry appending it to the array and pushes
       "atom",
       "octocat"
     ]
+
+### jp.drop
+Pops the top entry off the stack to get a count. Then pops that many items, deleting them.
+
+    echo '[1,2,3]' | jp jp.vals 1 jp.drop
+    2
+    1
 
 ### jp.pairs
 Pop an object off the stack and pushes an object for each key/value pair.
@@ -144,7 +151,7 @@ Filter strings/numbers. Pops the first value off the stack to use as an operand,
     [3,2]
 
 ### jp.count
-Replaces the stack with a count of stack entries.
+Replaces the stack with a count of stack items.
 
     echo '["JavaScript","PHP","Perl"]' | jp jp.vals jp.count
     3
