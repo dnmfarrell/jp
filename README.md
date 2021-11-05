@@ -1,6 +1,6 @@
 jp
 ==
-A JSON processor: it takes a stream of JSON text, parses it onto a stack, optionally transforms it, and then prints it on STDOUT. jp automatically detects multiline JSON, and JSON per line input.
+A JSON processor: it takes a stream of JSON text, parses it onto a stack, optionally transforms it, and then prints it out. jp automatically detects multiline JSON, and JSON per line input.
 
     jp [options] [arg ...]
 
@@ -40,7 +40,11 @@ Unlike some parsers, jp preserves object key order, and permits duplicate keys i
 
 Transform
 ---------
-The stack of parsed JSON tokens can be transformed with args:
+If jp received any input and it was successfully parsed into tokens, they will be in a single item on top of the stack. The transform stage is an opportunity to manipulate the stack with programming via args. jp processes its args at least once; when it receives JSON-per-line input it will process its args for each line. E.g: the JSON string `"customer"` is pushed onto the stack which is collected into an array, for each line of input:
+
+    echo -e $'1\n2' | jp -P '"customer"' .collect
+    ["customer",1]
+    ["customer",2]
 
 ### JSON values
 Any JSON literal will be parsed and pushed onto the stack, here's a string:
@@ -226,30 +230,31 @@ Tests are shell scripts which emit [TAP](https://testanything.org/) output. You 
 From the root project directory:
 
     prove $(find tests/ -name '*.bash')
-    tests/parse/string-unicode.bash .. ok
-    tests/parse/array.bash ........... ok
-    tests/parse/null.bash ............ ok
-    tests/parse/halts.bash ........... ok
-    tests/transform/count.bash ....... ok
-    tests/transform/push.bash ........ ok
-    tests/transform/drop.bash ........ ok
-    tests/transform/keys.bash ........ ok
-    tests/transform/pop.bash ......... ok
-    tests/transform/collect.bash ..... ok
-    tests/transform/dup.bash ......... ok
-    tests/transform/k.bash ........... ok
-    tests/transform/i.bash ........... ok
-    tests/transform/pairs.bash ....... ok
-    tests/transform/swap.bash ........ ok
-    tests/transform/vals.bash ........ ok
-    tests/transform/++.bash .......... ok
-    tests/transform/test.bash ........ ok
-    tests/print/plain.bash ........... ok
-    tests/print/indent.bash .......... ok
-    tests/print/pretty.bash .......... ok
-    tests/print/silent.bash .......... ok
+    tests/parse/string-unicode.bash .. ok   
+    tests/parse/array.bash ........... ok   
+    tests/parse/null.bash ............ ok   
+    tests/parse/halts.bash ........... ok   
+    tests/transform/count.bash ....... ok   
+    tests/transform/push.bash ........ ok   
+    tests/transform/drop.bash ........ ok   
+    tests/transform/keys.bash ........ ok   
+    tests/transform/pop.bash ......... ok   
+    tests/transform/collect.bash ..... ok   
+    tests/transform/dup.bash ......... ok   
+    tests/transform/k.bash ........... ok   
+    tests/transform/i.bash ........... ok   
+    tests/transform/pairs.bash ....... ok   
+    tests/transform/swap.bash ........ ok   
+    tests/transform/vals.bash ........ ok   
+    tests/transform/=~.bash .......... ok   
+    tests/transform/++.bash .......... ok    
+    tests/transform/test.bash ........ ok    
+    tests/print/plain.bash ........... ok   
+    tests/print/indent.bash .......... ok   
+    tests/print/pretty.bash .......... ok   
+    tests/print/silent.bash .......... ok   
     All tests successful.
-    Files=22, Tests=102,  7 wallclock secs ( 0.05 usr  0.02 sys +  6.28 cusr  0.19 csys =  6.54 CPU)
+    Files=23, Tests=112, 13 wallclock secs ( 0.09 usr  0.03 sys +  6.66 cusr  0.33 csys =  7.11 CPU)
     Result: PASS
 
 
