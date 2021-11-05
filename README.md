@@ -15,7 +15,7 @@ Options
     -n  no input, just process args
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
-    -s  silent disable output
+    -s  silent, disable print step
     -t  trace mode
 
 
@@ -63,14 +63,14 @@ Swaps the top two items of the stack with each other.
 ### .dup
 Copies the value on the top of the stack making it the top two items.
 
-    jp -n '"Hello"' .swap
+    jp -n '"Hello"' .dup
     "Hello"
     "Hello"
 
 ### .++
 Concatenate strings, arrays or objects on the stack into one value.
 
-    jp -n '"Hello,"' '" World!"' .swap .++
+    jp -n '" World!"' '"Hello,"' .++
     "Hello, World!"
 
     jp -n '["JavaScript","PHP","Perl"]' '["Python"]' .++
@@ -191,7 +191,7 @@ jp prints whatever data is left on the stack after the transform stage. By defau
     ]
 
     # terse but in the terminal
-    jp -P [1,2,3]
+    jp -nP [1,2,3]
     [1,2,3]
 
 The default indent for pretty printing is two spaces but you can override it with the -i option:
@@ -209,10 +209,12 @@ The default indent for pretty printing is two spaces but you can override it wit
 If you just want to use jp as a JSON validator and don't need the output, use silent mode `-s` and check the return code is zero:
 
     jp -ns [1,2,3] && echo "valid!"
+    valid!
 
 N.B. errors are emitted on stderr, to silence them, redirect:
 
-    jp -ns [1,2,] 2>/dev/null # no error output
+    jp -ns [1,2,] 2>/dev/null
+    # no error output
 
 Use jp as a library
 -------------------
