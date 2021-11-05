@@ -19,11 +19,6 @@ Options
     -t  trace mode
 
 
-Dependencies
-------------
-* Bash 4.3 or higher (namerefs)
-
-
 Parse
 -----
 jp parses the incoming JSON stream into an array of tokens that are pushed onto its stack. If it detects any malformed JSON it will emit an error and exit non-zero.
@@ -223,6 +218,20 @@ Use jp as a library
 -------------------
 jp is a [modulino](https://blog.dnmfarrell.com/post/modulinos-in-bash/). All of its functions and global variables are namespaced under `jp.` or `JP_`. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
 
+Install
+-------
+Clone this repo:
+
+    git clone git@github.com:dnmfarrell/jp
+
+Add the root project dir to your PATH, or copy the file to a directory in your PATH.
+
+
+Dependencies
+------------
+* Bash 4.3 or higher (namerefs)
+
+
 Run test suite
 --------------
 Tests are shell scripts which emit [TAP](https://testanything.org/) output. You can run them with [prove](https://perldoc.perl.org/prove) (comes with Perl). I wrote a blog [post](https://blog.dnmfarrell.com/post/unit-testing-shell-scripts/) about this setup.
@@ -230,32 +239,33 @@ Tests are shell scripts which emit [TAP](https://testanything.org/) output. You 
 From the root project directory:
 
     prove $(find tests/ -name '*.bash')
-    tests/parse/string-unicode.bash .. ok   
-    tests/parse/array.bash ........... ok   
-    tests/parse/null.bash ............ ok   
-    tests/parse/halts.bash ........... ok   
-    tests/transform/count.bash ....... ok   
-    tests/transform/push.bash ........ ok   
-    tests/transform/drop.bash ........ ok   
-    tests/transform/keys.bash ........ ok   
-    tests/transform/pop.bash ......... ok   
-    tests/transform/collect.bash ..... ok   
-    tests/transform/dup.bash ......... ok   
-    tests/transform/k.bash ........... ok   
-    tests/transform/i.bash ........... ok   
-    tests/transform/pairs.bash ....... ok   
-    tests/transform/swap.bash ........ ok   
-    tests/transform/vals.bash ........ ok   
-    tests/transform/=~.bash .......... ok   
-    tests/transform/++.bash .......... ok    
-    tests/transform/test.bash ........ ok    
-    tests/print/plain.bash ........... ok   
-    tests/print/indent.bash .......... ok   
-    tests/print/pretty.bash .......... ok   
-    tests/print/silent.bash .......... ok   
+    tests/parse/string-unicode.bash .. ok
+    tests/parse/array.bash ........... ok
+    tests/parse/null.bash ............ ok
+    tests/parse/halts.bash ........... ok
+    tests/transform/count.bash ....... ok
+    tests/transform/push.bash ........ ok
+    tests/transform/drop.bash ........ ok
+    tests/transform/keys.bash ........ ok
+    tests/transform/pop.bash ......... ok
+    tests/transform/collect.bash ..... ok
+    tests/transform/dup.bash ......... ok
+    tests/transform/k.bash ........... ok
+    tests/transform/i.bash ........... ok
+    tests/transform/pairs.bash ....... ok
+    tests/transform/swap.bash ........ ok
+    tests/transform/vals.bash ........ ok
+    tests/transform/=~.bash .......... ok
+    tests/transform/++.bash .......... ok 
+    tests/transform/test.bash ........ ok 
+    tests/print/plain.bash ........... ok
+    tests/print/indent.bash .......... ok
+    tests/print/pretty.bash .......... ok
+    tests/print/silent.bash .......... ok
     All tests successful.
     Files=23, Tests=112, 13 wallclock secs ( 0.09 usr  0.03 sys +  6.66 cusr  0.33 csys =  7.11 CPU)
     Result: PASS
+
 
 
 Shell Native
