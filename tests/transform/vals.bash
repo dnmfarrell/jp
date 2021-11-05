@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(./jp -n .vals 2>/dev/null)
+$(./jp .vals 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "vals on empty stack errors"
 else

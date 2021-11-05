@@ -2,14 +2,14 @@
 source "test-bootstrap.bash"
 IFS=
 
-empty=$(./jp -n .dup 2>/dev/null)
+empty=$(./jp .dup 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "dup empty stack errors"
 else
   fail "dup empty stack does not error"
 fi
 
-once=$(./jp -n [1] .dup)
+once=$(./jp [1] .dup)
 if [ "$once" = $'[1]\n[1]' ];then
   pass "dup once"
 else
@@ -17,7 +17,7 @@ else
   fail "dup once: got $onceesc"
 fi
 
-twice=$(./jp -n '[" a b c "]' .dup .dup)
+twice=$(./jp '[" a b c "]' .dup .dup)
 if [ "$twice" = $'[" a b c "]\n[" a b c "]\n[" a b c "]' ];then
   pass "dup twice"
 else
@@ -25,7 +25,7 @@ else
   fail "dup twice: got $twiceesc"
 fi
 
-two=$(./jp -n 'true' 'false' .dup)
+two=$(./jp 'true' 'false' .dup)
 if [ "$two" = $'false\nfalse\ntrue' ];then
   pass "dup two stack"
 else

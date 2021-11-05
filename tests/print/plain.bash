@@ -3,7 +3,7 @@ source "test-bootstrap.bash"
 IFS=
 
 expect='[1,2,3]'
-arrays=$(./jp -n $expect)
+arrays=$(./jp $expect)
 if [ "$arrays" = $expect ];then
   pass "plain output is default on non-tty"
 else

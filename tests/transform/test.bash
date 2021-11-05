@@ -54,7 +54,7 @@ else
   fail "test one true case returns: $oneesc"
 fi
 
-onestr=$(./jp -n '" a b c "' '" a b c "' .eq)
+onestr=$(./jp '" a b c "' '" a b c "' .eq)
 if [ "$onestr" = '[" a b c "]' ];then
   pass "test onestr true case"
 else

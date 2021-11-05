@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(./jp -n .k 2>/dev/null)
+$(./jp .k 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "k on empty stack errors"
 else
@@ -39,7 +39,7 @@ else
   fail "k on unmatched doesn't return []: $nomatchesc"
 fi
 
-onematch=$(./jp -n '{" a":1}' '{" a ":2}' '" a"' .k)
+onematch=$(./jp '{" a":1}' '{" a ":2}' '" a"' .k)
 if [ "$onematch" = '[1]' ];then
   pass "k one match returns expected"
 else

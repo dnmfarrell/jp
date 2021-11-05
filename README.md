@@ -12,7 +12,7 @@ Options
 -------
 
     -i  set indent value (default is two spaces)
-    -n  no input, just process args
+    -n  no input, just process args (default when no input)
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
     -s  silent, disable print step
@@ -44,36 +44,36 @@ If jp received any input and it was successfully parsed into tokens, they will b
 ### JSON values
 Any JSON literal will be parsed and pushed onto the stack, here's a string:
 
-    jp -n '"howdy"'
+    jp '"howdy"'
     "howdy"
 
 ### .pop
 Pops the top item off the stack, deleting it.
 
-    jp -n 1 .pop
+    jp 1 .pop
     # no output as stack is empty
 
 ### .swap
 Swaps the top two items of the stack with each other.
 
-    jp -n '"Hello"' '"World!"' .swap
+    jp '"Hello"' '"World!"' .swap
     "Hello"
     "World!"
 
 ### .dup
 Copies the value on the top of the stack making it the top two items.
 
-    jp -n '"Hello"' .dup
+    jp '"Hello"' .dup
     "Hello"
     "Hello"
 
 ### .++
 Concatenate strings, arrays or objects on the stack into one value.
 
-    jp -n '" World!"' '"Hello,"' .++
+    jp '" World!"' '"Hello,"' .++
     "Hello, World!"
 
-    jp -n '["JavaScript","PHP","Perl"]' '["Python"]' .++
+    jp '["JavaScript","PHP","Perl"]' '["Python"]' .++
     [
       "Python",
       "JavaScript",
@@ -81,7 +81,7 @@ Concatenate strings, arrays or objects on the stack into one value.
       "Perl"
     ]
 
-    jp -n '{"name":"Lex Luthor", "email":"lex@example.com"}' '{"job":"villain"}' .++
+    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' '{"job":"villain"}' .++
     {
       "job": "villain",
       "name": "Lex Luthor",
@@ -91,18 +91,18 @@ Concatenate strings, arrays or objects on the stack into one value.
 ### .keys
 Pop an object off the stack and push one value for each key.
 
-    jp -n '{"name":"Lex Luthor", "email":"lex@example.com"}' .keys
+    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' .keys
     "email"
     "name"
 
 ### .vals
 Pop an object/array off the stack and push one value for each item.
 
-    jp -n '{"name":"Lex Luthor", "email":"lex@example.com"}' .vals
+    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' .vals
     "lex@example.com"
     "Lex Luthor"
 
-    jp -n '["octocat","atom","electron","api"]' .vals
+    jp '["octocat","atom","electron","api"]' .vals
     "api"
     "electron"
     "atom"
@@ -111,7 +111,7 @@ Pop an object/array off the stack and push one value for each item.
 ### .collect
 Creates a new array, pops every stack item appending it to the array and pushes the array.
 
-    jp -n '"octocat"' '"atom"' '"electron"' '"api"' .collect
+    jp '"octocat"' '"atom"' '"electron"' '"api"' .collect
     [
       "api",
       "electron",
@@ -121,7 +121,7 @@ Creates a new array, pops every stack item appending it to the array and pushes 
 
 Combine with `.vals` to reverse an array:
 
-    jp -n '["octocat","atom","electron","api"]' .vals .collect
+    jp '["octocat","atom","electron","api"]' .vals .collect
     [
       "octocat",
       "atom",
@@ -132,32 +132,32 @@ Combine with `.vals` to reverse an array:
 ### .drop
 Pops the top item off the stack to get a count. Then pops that many items, deleting them.
 
-    jp -n '"foo"' '"bar"' 1 .drop
+    jp '"foo"' '"bar"' 1 .drop
     "foo"
 
 ### .pairs
 Pop an object off the stack and pushes an object for each key/value pair.
 
-    jp -nP '{"name":"Lex Luthor", "email":"lex@example.com"}' .pairs
+    jp -P '{"name":"Lex Luthor", "email":"lex@example.com"}' .pairs
     {"email":"lex@example.com"}
     {"name":"Lex Luthor"}
 
 ### .k
 Pops a string and then pops every item off the stack, accumulating all the key values (if found) in an array, pushes the array.
 
-    jp -nP '{"user":"dnmfarrell","email":"david@example.com"}' '"email"' .k
+    jp -P '{"user":"dnmfarrell","email":"david@example.com"}' '"email"' .k
     ["david@example.com"]
 
 ### .i
 Pops an integer off the stack to use as an index and then pops every array off the stack, accumulating all the values (if found) in an array, pushes the array.
 
-    jp -nP '["JavaScript","PHP","Perl"]' 1 .i
+    jp -P '["JavaScript","PHP","Perl"]' 1 .i
     ["PHP"]
 
 ### .lt .le .eq .ne .ge .gt
 Filter strings/numbers. Pops the first value off the stack to use as an operand, then pops all remaining values off the stack, accumulating any which pass the comparison in an array, pushes the array.
 
-    jp -nP 1 2 3 2 .le
+    jp -P 1 2 3 2 .le
     [2,1] # less than or equal to 2
 
 N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons. For `.le` string comparisons, jp uses `<`, and `>` for `.ge'.
@@ -165,7 +165,7 @@ N.B. Bash's test function does not support "greater-than-or-equal" or "less-than
 ### .=~
 Match a string extended posix pattern against other strings or numbers.
 
-    jp -n '"5"' 123 5.0 -1 '"foo"' '"^[0-9]+$"' .=~
+    jp '"5"' 123 5.0 -1 '"foo"' '"^[0-9]+$"' .=~
     [
       123,
       "5"
@@ -174,7 +174,7 @@ Match a string extended posix pattern against other strings or numbers.
 ### .count
 Replaces the stack with a count of stack items.
 
-    jp -n '"JavaScript"' '"PHP"' '"Perl"' .count
+    jp '"JavaScript"' '"PHP"' '"Perl"' .count
     3
 
 
@@ -183,7 +183,7 @@ Print
 jp prints whatever data is left on the stack after the transform stage. By default jp pretty prints JSON when printing to the terminal. You can override this behavior with the  -p and -P options:
 
     # pretty but piped
-    jp -np [1,2,3] | head
+    jp -p [1,2,3] | head
     [
       1,
       2,
@@ -191,13 +191,13 @@ jp prints whatever data is left on the stack after the transform stage. By defau
     ]
 
     # terse but in the terminal
-    jp -nP [1,2,3]
+    jp -P [1,2,3]
     [1,2,3]
 
 The default indent for pretty printing is two spaces but you can override it with the -i option:
 
     # tab indent
-    jp -n -i '	' '{"foo":[1,2,3]}'
+    jp -i '	' '{"foo":[1,2,3]}'
     {
     	"foo": [
     		1,
@@ -208,12 +208,12 @@ The default indent for pretty printing is two spaces but you can override it wit
 
 If you just want to use jp as a JSON validator and don't need the output, use silent mode `-s` and check the return code is zero:
 
-    jp -ns [1,2,3] && echo "valid!"
+    jp -s [1,2,3] && echo "valid!"
     valid!
 
 N.B. errors are emitted on stderr, to silence them, redirect:
 
-    jp -ns [1,2,] 2>/dev/null
+    jp -s [1,2,] 2>/dev/null
     # no error output
 
 Use jp as a library

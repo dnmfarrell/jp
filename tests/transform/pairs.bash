@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(./jp -n .pairs 2>/dev/null)
+$(./jp .pairs 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "pairs on empty stack errors"
 else

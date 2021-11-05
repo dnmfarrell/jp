@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(./jp -n .keys 2>/dev/null)
+$(./jp .keys 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "keys on empty stack errors"
 else

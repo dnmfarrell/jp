@@ -2,28 +2,28 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(./jp -n .=~ 2>/dev/null)
+$(./jp .=~ 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "match empty stack errors"
 else
   fail "match empty stack does not error"
 fi
 
-$(./jp -n null .=~ 2>/dev/null)
+$(./jp null .=~ 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "match illegal operand type errors"
 else
   fail "match illegal operand type does not error"
 fi
 
-$(./jp -n '{}' '"*"' .=~ 2>/dev/null)
+$(./jp '{}' '"*"' .=~ 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "match illegal type errors"
 else
   fail "match illegal type does not error"
 fi
 
-nothing=$(./jp -n '"1"' .=~)
+nothing=$(./jp '"1"' .=~)
 if [ "$nothing" = '[]' ];then
   pass "match one stack returns []"
 else
@@ -31,7 +31,7 @@ else
   fail "match one stack returns: $nothingesc"
 fi
 
-none=$(./jp -n 1 2 3 5 '"a"' .=~)
+none=$(./jp 1 2 3 5 '"a"' .=~)
 if [ "$none" = '[]' ];then
   pass "match no true cases returns []"
 else
@@ -39,7 +39,7 @@ else
   fail "match no true cases returns: $noneesc"
 fi
 
-one=$(./jp -n 1 2 3 5 '"3"' .=~)
+one=$(./jp 1 2 3 5 '"3"' .=~)
 if [ "$one" = '[3]' ];then
   pass "match one item"
 else
@@ -47,7 +47,7 @@ else
   fail "match one item returns: $oneesc"
 fi
 
-strnum=$(./jp -n 1 '"ded mau5"' '"[0-9]$"' .=~)
+strnum=$(./jp 1 '"ded mau5"' '"[0-9]$"' .=~)
 if [ "$strnum" = '["ded mau5",1]' ];then
   pass "match str and num"
 else
@@ -55,7 +55,7 @@ else
   fail "match str and num: $strnumesc"
 fi
 
-multi=$(./jp -n '"anon"' '"a bar"' '"a fish"' '"^a "' .=~)
+multi=$(./jp '"anon"' '"a bar"' '"a fish"' '"^a "' .=~)
 if [ "$multi" = '["a fish","a bar"]' ];then
   pass "match multi item"
 else
@@ -63,7 +63,7 @@ else
   fail "match multi item returns: $multiesc"
 fi
 
-emptystr=$(./jp -n '""' '" bar"' '"a "' '"^$"' .=~)
+emptystr=$(./jp '""' '" bar"' '"a "' '"^$"' .=~)
 if [ "$emptystr" = '[""]' ];then
   pass "match emptystr item"
 else

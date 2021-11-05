@@ -810,6 +810,7 @@ function jp.run {
 
 function jp.main {
   [[ -t 1 ]] && JP_PRETTY=1 # default to pretty for a tty
+  [ ! -t 0 ] || JP_INPUT=   # default to no input if !stdin
   while getopts ":npPsti:" opt; do
     case "$opt" in
       'n') JP_INPUT=;;

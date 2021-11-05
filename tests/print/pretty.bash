@@ -14,7 +14,7 @@ fi
 which socat 1>/dev/null # to simulate tty
 if [ $? -eq 0 ];then
   expect=$'[\r\n  1,\r\n  2,\r\n  3\r\n]'
-  output=$(socat -u -t0 EXEC:"./jp -n $expect",pty -)
+  output=$(socat -u -t0 EXEC:"./jp $expect",pty -)
   if [ "$output" = $expect$'\r' ];then
     pass "pretty is default on tty"
   else
