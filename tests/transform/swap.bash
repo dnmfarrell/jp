@@ -2,22 +2,22 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo '{"a":1}' | ./jp .pop .swap 2>/dev/null)
+$(./jp -n .swap 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "swap empty stack errors"
 else
   fail "swap empty stack does not error"
 fi
 
-$(echo '{"a":1}' | ./jp .swap 2>/dev/null)
+$(./jp -n 1 .swap 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "swap one stack errors"
 else
   fail "swap one stack does not error"
 fi
 
-twice=$(echo '["a"]' | ./jp '["b"]' .swap .swap)
-if [ "$twice" = $'["b"]\n["a"]' ];then
+twice=$(echo '[" a c "]' | ./jp '["b"]' .swap .swap)
+if [ "$twice" = $'["b"]\n[" a c "]' ];then
   pass "swap twice"
 else
   printf -v twiceesc "%q" "$twice"

@@ -47,8 +47,8 @@ else
   fail "match one item returns: $oneesc"
 fi
 
-strnum=$(./jp -n 1 '"mau5"' '"[0-9]$"' .=~)
-if [ "$strnum" = '["mau5",1]' ];then
+strnum=$(./jp -n 1 '"ded mau5"' '"[0-9]$"' .=~)
+if [ "$strnum" = '["ded mau5",1]' ];then
   pass "match str and num"
 else
   printf -v strnumesc "%q" "$strnum"
@@ -63,8 +63,8 @@ else
   fail "match multi item returns: $multiesc"
 fi
 
-emptystr=$(./jp -n '"anon"' '"a bar"' '"a fish"' '"^a "' .=~)
-if [ "$emptystr" = '["a fish","a bar"]' ];then
+emptystr=$(./jp -n '""' '" bar"' '"a "' '"^$"' .=~)
+if [ "$emptystr" = '[""]' ];then
   pass "match emptystr item"
 else
   printf -v emptystresc "%q" "$emptystr"

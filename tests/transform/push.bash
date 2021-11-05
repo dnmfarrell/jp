@@ -2,8 +2,8 @@
 source "test-bootstrap.bash"
 IFS=
 
-string=$(echo '"Hello"' | ./jp '"World!"' '""')
-if [ $string = $'""\n"World!"\n"Hello"' ];then
+string=$(echo '" He llo "' | ./jp '"World!"' '""')
+if [ $string = $'""\n"World!"\n" He llo "' ];then
   pass "push string"
 else
   printf -v stringesc "%q" "$string"

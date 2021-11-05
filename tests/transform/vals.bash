@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | ./jp .pop .vals 2>/dev/null)
+$(./jp -n .vals 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "vals on empty stack errors"
 else
@@ -32,8 +32,8 @@ else
   fail "vals on object doesn't return two vals: $twoobjesc"
 fi
 
-nestobj=$(echo '{"a":[null,"1",{"b":[1]}],"c":2}' | ./jp .vals)
-if [ "$nestobj" = $'2\n[null,"1",{"b":[1]}]' ];then
+nestobj=$(echo '{"a":[null,"1",{" a b ":[" a b "]}],"c":2}' | ./jp .vals)
+if [ "$nestobj" = $'2\n[null,"1",{" a b ":[" a b "]}]' ];then
   pass "vals on nested object returns expected"
 else
   printf -v nestobjesc "%q" "$nestobj"

@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo null | ./jp .++ 2>/dev/null)
+$(./jp -n null .++ 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "++ invalid type errors"
 else
@@ -31,9 +31,9 @@ else
   fail "++ onestr string returns unexpected: $onestresc"
 fi
 
-multistr=$(echo '"f"' | ./jp '"bar"' .++)
-if [ "$multistr" = '"barf"' ];then
-  pass '++ multistr string returns "barf"'
+multistr=$(echo '"f "' | ./jp '"bar"' .++)
+if [ "$multistr" = '"barf "' ];then
+  pass '++ multistr string returns "barf "'
 else
   printf -v multistresc "%q" "$multistr"
   fail "++ multistr string returns unexpected: $multistresc"

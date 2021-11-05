@@ -490,8 +490,7 @@ function jp.i {
         while (( j < len ));do
           jp.get_atom "$j"
           if [ $i -eq $real_i ];then
-            eval "$rv"+='(${tos[@]:$j:$JP_ATOM_LEN})'
-            eval "$rv"+='(,)'
+            eval "$rv"+='("${tos[@]:$j:$JP_ATOM_LEN}" ,)'
             (( rvlen++ ))
             break;
           fi
@@ -615,15 +614,13 @@ function jp._test {
     jp.pop || return
     local -n tos="$JP_OUT"
     if [ "$mode" = 'str' ] && [ ${tos[0]:0:1} = '"' ];then
-      if [ $tos $str_op $operand ];then
-        eval "$rv"+='($tos)'
-        eval "$rv"+='(,)'
+      if [ "$tos" $str_op "$operand" ];then
+        eval "$rv"+='("$tos" ,)'
         (( rvlen++ ))
       fi
     elif [ "$mode" = 'num' ] && [[ ${tos[0]:0:1} == [[:digit:]-] ]];then
       if [ $tos $num_op $operand ];then
-        eval "$rv"+='($tos)'
-        eval "$rv"+='(,)'
+        eval "$rv"+='($tos ,)'
         (( rvlen++ ))
       fi
     else

@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-empty=$(echo '{"a":1}' | ./jp .pop .pop 2>/dev/null)
+empty=$(./jp -n .pop 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "pop empty stack errors"
 else
@@ -17,7 +17,7 @@ else
   fail "pop popone: got $poponeesc"
 fi
 
-poptwo=$(echo 1 | ./jp '{}' '[]' .pop .pop)
+poptwo=$(./jp -n 1 '{}' '[]' .pop .pop)
 if [ "$poptwo" = '1' ];then
   pass "pop poptwo"
 else

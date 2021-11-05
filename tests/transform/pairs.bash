@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | ./jp .pop .pairs 2>/dev/null)
+$(./jp -n .pairs 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "pairs on empty stack errors"
 else
@@ -24,16 +24,16 @@ else
   fail "pairs on empty object doesn't return empty:"
 fi
 
-twoobj=$(echo '{"a":1,"b":2}' | ./jp .pairs)
-if [ "$twoobj" = $'{"b":2}\n{"a":1}' ];then
+twoobj=$(echo '{"a":1," b c ":2}' | ./jp .pairs)
+if [ "$twoobj" = $'{" b c ":2}\n{"a":1}' ];then
   pass "pairs on object returns two pairs"
 else
   printf -v twoobjesc "%q" "$twoobj"
   fail "pairs on object doesn't return two pairs: $twoobjesc"
 fi
 
-nestobj=$(echo '{"a":[null,"1",{"b":[1]}],"c":2}' | ./jp .pairs)
-if [ "$nestobj" = $'{"c":2}\n{"a":[null,"1",{"b":[1]}]}' ];then
+nestobj=$(echo '{"a":[null,"1",{" b c ":[1]}],"c":2}' | ./jp .pairs)
+if [ "$nestobj" = $'{"c":2}\n{"a":[null,"1",{" b c ":[1]}]}' ];then
   pass "pairs on nested object returns expected"
 else
   printf -v nestobjesc "%q" "$nestobj"

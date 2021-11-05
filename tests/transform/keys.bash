@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | ./jp .pop .keys 2>/dev/null)
+$(./jp -n .keys 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "keys on empty stack errors"
 else
@@ -24,8 +24,8 @@ else
   fail "keys on empty doesn't return nothing: $emptyesc"
 fi
 
-two=$(echo '{"a":1,"b":2}' | ./jp .keys)
-if [ "$two" = $'"b"\n"a"' ];then
+two=$(echo '{" a b c ":1,"b":2}' | ./jp .keys)
+if [ "$two" = $'"b"\n" a b c "' ];then
   pass "keys returns two"
 else
   printf -v twoesc "%q" "$two"

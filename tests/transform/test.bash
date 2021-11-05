@@ -54,6 +54,14 @@ else
   fail "test one true case returns: $oneesc"
 fi
 
+onestr=$(./jp -n '" a b c "' '" a b c "' .eq)
+if [ "$onestr" = '[" a b c "]' ];then
+  pass "test onestr true case"
+else
+  printf -v onestresc "%q" "$onestr"
+  fail "test onestr true case returns: $onestresc"
+fi
+
 three=$(echo 1 | ./jp 2 3 1 .ge)
 if [ "$three" = '[3,2,1]' ];then
   pass "test three true cases"
