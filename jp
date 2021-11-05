@@ -663,6 +663,43 @@ function jp.le {
   jp._test "-le" "<"
 }
 
+function jp.=~ {
+  jp.pop || return
+  local -n tos="$JP_OUT"
+  if [ ${tos[0]:0:1} != '"' ];then
+    jp.error "=~ requires a string as a pattern" || return
+  fi
+  local operand="${tos:1:$(( ${#tos} -2 ))}"
+  (( argi++ ))
+  local rv="JP_RV$argi" rvlen=1
+  eval 'declare -ga '"$rv"='("[")'
+  while (( JP_STACKSIZE ));do
+    jp.pop || return
+    local -n tos="$JP_OUT"
+    if [ ${tos[0]:0:1} == '"' ];then # remove "
+      if [[ "${tos:1:$(( ${#tos} -2 ))}" =~ $operand ]];then
+        eval "$rv"+='("$tos")'
+        eval "$rv"+='(,)'
+        (( rvlen++ ))
+      fi
+    elif [[ ${tos:0:1} == [[:digit:]-] ]];then # remove "
+      if [[ $tos =~ $operand ]];then
+        eval "$rv"+='($tos)'
+        eval "$rv"+='(,)'
+        (( rvlen++ ))
+      fi
+    else
+      jp.error "=~ only matches strings and numbers" || return
+    fi
+  done
+  # handle empty
+  if (( rvlen > 1 ));then
+    eval "$rv"[-1]=']'
+  else
+    eval "$rv"+="(']')"
+  fi
+  jp.push "$rv"
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS

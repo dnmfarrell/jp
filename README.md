@@ -161,6 +161,17 @@ Filter strings/numbers. Pops the first value off the stack to use as an operand,
     jp -nP 1 2 3 2 .le
     [2,1] # less than or equal to 2
 
+N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons. For `.le` string comparisons, jp uses `<`, and `>` for `.ge'.
+
+### .=~
+Match a string extended posix pattern against other strings or numbers.
+
+    jp -n '"5"' 123 5.0 -1 '"foo"' '"^[0-9]+$"' .=~
+    [
+      123,
+      "5"
+    ]
+
 ### .count
 Replaces the stack with a count of stack items.
 
