@@ -23,7 +23,7 @@ else
   fail "++ incompatible string types does not error"
 fi
 
-onestr=$(echo '"f"' | ./jp .++)
+onestr=$(./jp '"f"' .++)
 if [ "$onestr" = '"f"' ];then
   pass '++ onestr string returns "f"'
 else

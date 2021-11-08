@@ -229,11 +229,6 @@ Clone this repo:
 Add the root project dir to your PATH, or copy the file to a directory in your PATH.
 
 
-Dependencies
-------------
-* Bash 4.3 or higher (namerefs)
-
-
 Run test suite
 --------------
 Tests are shell scripts which emit [TAP](https://testanything.org/) output. You can run them with [prove](https://perldoc.perl.org/prove) (comes with Perl). I wrote a blog [post](https://blog.dnmfarrell.com/post/unit-testing-shell-scripts/) about this setup.
@@ -281,9 +276,8 @@ jp is a shell native program, that is, it is written in the same programming lan
 
 Being shell native has some downsides too:
 1. Shell code's limited support for programming concepts like data structures, return values and so on make it difficult to create apps in.
-2. Bash 4.3 or higher is needed to run jp because it uses namerefs.
-3. jp is not as fast as [jq](https://stedolan.github.io/jq/)!
-4. Users have to be familiar with shell programming to get the most out of the program
+2. jp is not as fast as [jq](https://stedolan.github.io/jq/)!
+3. Users have to be familiar with shell programming to get the most out of the program
 
 All that's needed to solve these issues is a better shell programming language which is really fast, portable and used everywhere.
 

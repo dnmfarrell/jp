@@ -52,7 +52,7 @@ if [ "$multimatch" = '[[],{" a b ":1}]' ];then
   pass "i multi match returns expected"
 else
   printf -v multimatchesc "%q" "$multimatch"
-  fail "i on unmatched doesn't return expected: $multimatchesc"
+  fail "i multi match doesn't return expected: $multimatchesc"
 fi
 
 end

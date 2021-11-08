@@ -16,7 +16,7 @@ else
   fail "swap one stack does not error"
 fi
 
-twice=$(echo '[" a c "]' | ./jp '["b"]' .swap .swap)
+twice=$(./jp '[" a c "]' '["b"]' .swap .swap)
 if [ "$twice" = $'["b"]\n[" a c "]' ];then
   pass "swap twice"
 else

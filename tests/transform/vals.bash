@@ -32,7 +32,7 @@ else
   fail "vals on object doesn't return two vals: $twoobjesc"
 fi
 
-nestobj=$(echo '{"a":[null,"1",{" a b ":[" a b "]}],"c":2}' | ./jp .vals)
+nestobj=$(./jp '{"a":[null,"1",{" a b ":[" a b "]}],"c":2}' .vals)
 if [ "$nestobj" = $'2\n[null,"1",{" a b ":[" a b "]}]' ];then
   pass "vals on nested object returns expected"
 else

@@ -23,7 +23,7 @@ else
   fail "test mismatched types does not error"
 fi
 
-$(echo "f" | ./jp 1 .eq 2>/dev/null)
+$(./jp '"f"' 1 .eq 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "test mismatched types errors"
 else

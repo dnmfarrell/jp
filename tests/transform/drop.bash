@@ -23,7 +23,7 @@ else
   fail "drop non-integer doesn't error"
 fi
 
-one=$(echo 1 | ./jp '["b"]' '["a"]' 1 .drop)
+one=$(./jp 1 '["b"]' '["a"]' 1 .drop)
 if [ "$one" = $'["b"]\n1' ];then
   pass "drop one"
 else

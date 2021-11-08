@@ -10,8 +10,8 @@ else
   fail "collect empty stack returns: $emptyesc"
 fi
 
-one=$(./jp '"foo bar"' .collect)
-if [ "$one" = '["foo bar"]' ];then
+one=$(./jp '" foo bar "' .collect)
+if [ "$one" = '[" foo bar "]' ];then
   pass 'collect one stack returns ["f"]'
 else
   printf -v oneesc "%q" "$one"
