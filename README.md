@@ -12,7 +12,6 @@ Options
 -------
 
     -i  set indent value (default is two spaces)
-    -n  no input, just process args (default when no input)
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
     -s  silent, disable print step

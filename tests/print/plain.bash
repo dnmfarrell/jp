@@ -13,7 +13,7 @@ fi
 
 which socat 1>/dev/null # to simulate tty
 if [ $? -eq 0 ];then
-  output=$(socat -u -t0 EXEC:"./jp -nP $expect",pty -)
+  output=$(socat -u -t0 EXEC:"./jp -P $expect",pty -)
   if [ "$output" = $expect$'\r' ];then
     pass "-P forces plain output"
   else

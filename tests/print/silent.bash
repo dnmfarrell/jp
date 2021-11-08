@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 IFS=
 
-empty=$(./jp -ns)
+empty=$(./jp -s)
 if [ "$empty" = '' ];then
   pass "silent mode emits nothing with empty stack"
 else

@@ -5,7 +5,7 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE=0 JP_COL=0 JP_C= JP_OUT=() JP_TOKENS=() JP_INDENT="  " JP_PRETTY= JP_SILENT= JP_ATOM_LEN= JP_INPUT=1
+declare JP_LINE=0 JP_COL=0 JP_C= JP_OUT=() JP_TOKENS=() JP_INDENT="  " JP_PRETTY= JP_SILENT= JP_ATOM_LEN= JP_INPUT=
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -723,9 +723,9 @@ function jp.run {
 
   # print
   [ $JP_SILENT ] && return 0
-  while [[ $JP_STACKSIZE > 0 ]];do
+  while [ $JP_STACKSIZE -gt 0 ];do
     jp.pop || return
-    if [[ $JP_PRETTY ]];then
+    if [ $JP_PRETTY ];then
       jp.prettyprint "$JP_INDENT"
     else
       jp.uglyprint
@@ -735,11 +735,10 @@ function jp.run {
 }
 
 function jp.main {
-  [[ -t 1 ]] && JP_PRETTY=1 # default to pretty for a tty
-  [ ! -t 0 ] || JP_INPUT=   # default to no input if !stdin
-  while getopts ":npPsti:" opt; do
+  [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
+  [ -t 0 ] || JP_INPUT=1  # read input if being piped
+  while getopts ":pPsti:" opt; do
     case "$opt" in
-      'n') JP_INPUT=;;
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
       't') trap '(jp.trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
@@ -757,6 +756,6 @@ function jp.main {
   [ $JP_INPUT ] && jp.detect_nullbyte
   return 0
 }
-[[ "$BASH_SOURCE" == "$0" ]] && jp.main "$@"
+[ "$BASH_SOURCE" == "$0" ] && jp.main "$@"
 # END MAIN
 # vim: set ft=sh:
