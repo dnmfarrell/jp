@@ -16,7 +16,7 @@ else
   fail "++ incompatible collection types does not error"
 fi
 
-$(echo '{}' | ./jp '"f"' .++ 2>/dev/null)
+$(./jp '{}' '"f"' .++ 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "++ incompatible string types errors"
 else
