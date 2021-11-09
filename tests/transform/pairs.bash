@@ -24,7 +24,7 @@ else
   fail "pairs on empty object doesn't return empty:"
 fi
 
-twoobj=$(echo '{"a":1," b c ":2}' | ./jp .pairs)
+twoobj=$(./jp '{"a":1," b c ":2}' .pairs)
 if [ "$twoobj" = $'{" b c ":2}\n{"a":1}' ];then
   pass "pairs on object returns two pairs"
 else

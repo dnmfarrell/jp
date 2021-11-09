@@ -56,7 +56,7 @@ else
   fail "vals on array doesn't return two vals: $twoarresc"
 fi
 
-nestarr=$(echo '[["a"],true,[[{"b":1}],null]]' | ./jp .vals)
+nestarr=$(./jp '[["a"],true,[[{"b":1}],null]]' .vals)
 if [ "$nestarr" = $'[[{"b":1}],null]\ntrue\n["a"]' ];then
   pass "vals on nested array returns expected"
 else

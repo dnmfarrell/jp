@@ -5,7 +5,8 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE=0 JP_COL=0 JP_C= JP_OUT=() JP_TOKENS=() JP_INDENT="  " JP_PRETTY= JP_SILENT= JP_ATOM_LEN= JP_INPUT=
+declare JP_LINE=0 JP_COL=0 JP_C= JP_OUT= JP_TOKENS= JP_INDENT="  " JP_PRETTY= JP_SILENT= JP_ATOM_LEN= JP_INPUT=
+IFS=$'\t' # tokens are tab delimited
 
 function jp.error {
   echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
@@ -53,7 +54,7 @@ function jp.expect {
 }
 
 function jp.array {
-  JP_TOKENS+=("[")
+  JP_TOKENS+="[	"
   jp.chomp
   jp.drop_ws
   if [[ "$JP_C" != ']' ]];then
@@ -64,7 +65,7 @@ function jp.array {
       if [[ "$JP_C" == ']' ]];then
         break
       elif [[ "$JP_C" == ',' ]];then
-        JP_TOKENS+=(",")
+        JP_TOKENS+=",	"
         jp.chomp
         jp.drop_ws
         jp.read_next || return
@@ -73,12 +74,12 @@ function jp.array {
       fi
     done
   fi
-  JP_TOKENS+=("]")
+  JP_TOKENS+="]	"
   jp.chomp
 }
 
 function jp.object {
-  JP_TOKENS+=("{")
+  JP_TOKENS+="{	"
   jp.chomp
   jp.drop_ws
   if [[ "$JP_C" != '}' ]];then
@@ -86,7 +87,7 @@ function jp.object {
     jp.string
     jp.drop_ws
     jp.expect ":" || return
-    JP_TOKENS+=(":")
+    JP_TOKENS+=":	"
     jp.chomp
     jp.drop_ws
     jp.read_next || return
@@ -96,14 +97,14 @@ function jp.object {
       if [[ "$JP_C" == '}' ]];then
         break
       elif [[ "$JP_C" == ',' ]];then
-        JP_TOKENS+=(",")
+        JP_TOKENS+=",	"
         jp.chomp
         jp.drop_ws
         jp.expect '"' || return
         jp.string
         jp.drop_ws
         jp.expect ":" || return
-        JP_TOKENS+=(":")
+        JP_TOKENS+=":	"
         jp.chomp
         jp.drop_ws
         jp.read_next || return
@@ -112,7 +113,7 @@ function jp.object {
       fi
     done
   fi
-  JP_TOKENS+=("}")
+  JP_TOKENS+="}	"
   jp.chomp
 }
 
@@ -160,7 +161,7 @@ function jp.number {
       fi
       num="$num$JP_C"
     else
-      JP_TOKENS+=("$num")
+      JP_TOKENS+="$num	"
       break
     fi
     jp.chomp
@@ -193,7 +194,7 @@ function jp.string {
         jp.error "invalid escape sequence in string: \\$JP_C" || return
       fi
     elif [[ "$JP_C" == '"' ]];then
-      JP_TOKENS+=("\"$str\"")
+      JP_TOKENS+="\"$str\"	"
       break
     fi
     str+="$JP_C"
@@ -208,7 +209,7 @@ function jp.null {
     if [[ "$JP_C" == "l" ]];then
       jp.chomp
       if [[ "$JP_C" == "l" ]];then
-        JP_TOKENS+=("null")
+        JP_TOKENS+="null	"
         jp.chomp
         return
       fi
@@ -224,7 +225,7 @@ function jp.bool_true {
     if [[ "$JP_C" == "u" ]];then
       jp.chomp
       if [[ "$JP_C" == "e" ]];then
-        JP_TOKENS+=("true")
+        JP_TOKENS+="true	"
         jp.chomp
         return
       fi
@@ -242,7 +243,7 @@ function jp.bool_false {
       if [[ "$JP_C" == "s" ]];then
         jp.chomp
         if [[ "$JP_C" == "e" ]];then
-          JP_TOKENS+=("false")
+          JP_TOKENS+="false	"
           jp.chomp
           return
         fi
@@ -283,16 +284,27 @@ function jp.detect_nullbyte {
 # END PARSE FUNCTIONS
 
 # BEGIN TRANSFORM FUNCTIONS
+function jp.push {
+  JP_STACK="$1"$'\n'"$JP_STACK" # \n delimited
+  (( JP_STACKSIZE++ ))
+  return 0
+}
+
 function jp.pop {
   (( JP_STACKSIZE-- )) || jp.error "cannot pop an empty stack" || return
-  JP_REF="${JP_STACK[$JP_STACKSIZE]}"
-  IFS= eval JP_OUT=("\${$JP_REF[@]}")
-  JP_STACK[$JP_STACKSIZE]=
+  local sep=$'\t\n'
+  if (( JP_STACKSIZE > 0 ));then
+    JP_OUT="${JP_STACK%%$sep*}"
+    JP_STACK="${JP_STACK#*$sep}"
+  else
+    JP_OUT="${JP_STACK:0:-2}"
+    JP_STACK=
+  fi
 }
 
 function jp.drop {
   jp.pop || return
-  if [[ "$JP_OUT" =~ ^[0-9]+$ ]];then
+  if [[ $JP_OUT =~ ^[0-9]+$ ]];then
     jp_drop_count="$JP_OUT"
     while (( jp_drop_count-- ));do
       jp.pop || return
@@ -302,188 +314,200 @@ function jp.drop {
   fi
 }
 
-function jp.push {
-  JP_STACK[$JP_STACKSIZE]="$1"
-  (( JP_STACKSIZE++ ))
-  return 0
-}
-
 function jp.dup {
   (( JP_STACKSIZE > 0 )) || jp.error "cannot dup an empty stack" || return
-  JP_REF="${JP_STACK[$(( JP_STACKSIZE-1 ))]}"
-  (( JP_REFCNT++ ))
-  IFS= eval "JP_REF_$JP_REFCNT"='(${'"$JP_REF"'[@]})'
-  jp.push "JP_REF_$JP_REFCNT"
+  jp.pop
+  jp.push "$JP_OUT	"
+  jp.push "$JP_OUT	"
 }
 
 function jp.swap {
   (( JP_STACKSIZE > 1 )) || jp.error 'swap needs two items on the stack' || return
-  JP_REF="${JP_STACK[$(( JP_STACKSIZE-1 ))]}"
-  JP_STACK[$(( JP_STACKSIZE-1 ))]="${JP_STACK[$(( JP_STACKSIZE-2 ))]}"
-  JP_STACK[$(( JP_STACKSIZE-2 ))]="$JP_REF"
-}
-
-function jp.get_atom {
-  local i="$1"
-  if [ "${JP_OUT[$i]}" = '{' ];then
-    local nest_count=0
-    while :;do
-      (( i++ ))
-      if [ "${JP_OUT[$i]}" = '{' ];then
-        (( nest_count++ ))
-      elif [ "${JP_OUT[$i]}" = '}' ];then
-        (( nest_count-- ))
-        if [ $nest_count -lt 0 ];then
-          (( JP_ATOM_LEN=$i-$1+1 ))
-          return
-        fi
-      fi
-    done
-  elif [ "${JP_OUT[$i]}" = '[' ];then
-    local nest_count=0
-    while :;do
-      (( i++ ))
-      if [ "${JP_OUT[$i]}" = '[' ];then
-        (( nest_count++ ))
-      elif [ "${JP_OUT[$i]}" == ']' ];then
-        (( nest_count-- ))
-        if [ $nest_count -lt 0 ];then
-          (( JP_ATOM_LEN=$i-$1+1 ))
-          return
-        fi
-      fi
-    done
-  else
-     JP_ATOM_LEN=1
-  fi
+  jp.pop
+  local swap_buf="$JP_OUT"
+  jp.pop
+  jp.push "$swap_buf	"
+  jp.push "$JP_OUT	"
 }
 
 function jp.keys {
   jp.pop || return
-  if [ "${JP_OUT[0]}" = '{' ];then
-    local i=1 len=$(("${#JP_OUT[@]}"-3))
-    while (( i < len ));do
-      (( JP_REFCNT++ ))
-      IFS= eval "JP_REF_$JP_REFCNT"='("${JP_OUT[$i]}")'
-      jp.push "JP_REF_$JP_REFCNT"
-      # now skip the :value
-      (( i+=2 ))
-      jp.get_atom "$i"
-      (( i+=1+$JP_ATOM_LEN ))
+  if [ "${JP_OUT:0:1}" = '{' ];then
+    [ "${#JP_OUT}" -eq 3 ] && return # {\t}
+    local flipflop=0 nestcnt=0
+    for t in ${JP_OUT:2:-2};do
+      if [ $flipflop -eq 0 ];then # key
+        jp.push "$t	"
+        (( flipflop++ ))
+      elif [ $flipflop -eq 1 ];then # :
+        (( flipflop++ ))
+      elif [ $flipflop -eq 2 ];then # val
+        [[ $t == [\[{] ]] && (( nestcnt++ ))
+        [[ $t == [\]}] ]] && (( nestcnt-- ))
+        if [ $nestcnt -eq 0 ];then
+          (( flipflop++ ))
+        fi
+      else # ,
+        flipflop=0
+      fi
     done
   else
     jp.error "keys only works on objects" || return
   fi
 }
 
+function jp.vals_obj {
+  [ "${#JP_OUT}" -eq 3 ] && return # {\t}
+  local flipflop=0 nestcnt=0 accum
+  for t in ${JP_OUT:2:-2};do
+    if [ $flipflop -eq 0 ];then # key
+      (( flipflop++ ))
+    elif [ $flipflop -eq 1 ];then # :
+      (( flipflop++ ))
+    elif [ $flipflop -eq 2 ];then # val
+      accum+="$t	"
+      [[ $t == [\[{] ]] && (( nestcnt++ ))
+      [[ $t == [\]}] ]] && (( nestcnt-- ))
+      if [ $nestcnt -eq 0 ];then
+        (( flipflop++ ))
+        jp.push "$accum"
+        accum=
+      fi
+    else # ,
+      flipflop=0
+    fi
+  done
+}
+
+function jp.vals_arr {
+  [ "${#JP_OUT}" -eq 3 ] && return # [\t]
+  local nestcnt=0 accum
+  for t in ${JP_OUT:2:-2};do
+    if [ $nestcnt -gt 0 ] || [ "$t" != ',' ];then
+      accum+="$t	"
+      [[ $t == [\[{] ]] && (( nestcnt++ ))
+      [[ $t == [\]}] ]] && (( nestcnt-- ))
+      if [ $nestcnt -eq 0 ];then
+        jp.push "$accum"
+        accum=
+      fi
+    fi
+  done
+}
+
 function jp.vals {
   jp.pop || return
-  local offset=1
-  if [ "${JP_OUT[0]}" = '{' ];then
-    offset=3
-  elif [ "${JP_OUT[0]}" != '[' ];then
+  if [ "${JP_OUT:0:1}" = '{' ];then
+    jp.vals_obj
+  elif [ "${JP_OUT:0:1}" = '[' ];then
+    jp.vals_arr
+  else
     jp.error "values only works on objects/arrays" || return
   fi
-  local i=$offset len=$(("${#JP_OUT[@]}"-1))
-  while (( i < len ));do
-    jp.get_atom "$i"
-    (( JP_REFCNT++ ))
-    IFS= eval "JP_REF_$JP_REFCNT"='("${JP_OUT[@]:$i:$JP_ATOM_LEN}")'
-    jp.push "JP_REF_$JP_REFCNT"
-    (( i+=offset+$JP_ATOM_LEN ))
-  done
 }
 
 function jp.pairs {
   jp.pop || return
-  if [ "${JP_OUT[0]}" = '{' ];then
-    local i=1 len=$(("${#JP_OUT[@]}"-3))
-    while (( i < len ));do
-      local k="${JP_OUT[$i]}"
-      (( i+=2))
-      jp.get_atom "$i"
-      (( JP_REFCNT++ ))
-      IFS= eval "JP_REF_$JP_REFCNT"='({ "$k" : "${JP_OUT[@]:$i:$JP_ATOM_LEN}" })'
-      jp.push "JP_REF_$JP_REFCNT"
-      (( i+=1+$JP_ATOM_LEN ))
-    done
-  else
-    jp.error "pairs only works on objects" || return
-  fi
+  [ "${JP_OUT:0:1}" = '{' ] || jp.error "pairs only works on objects" || return
+  [ "${#JP_OUT}" -eq 3 ] && return # {\t}
+  local flipflop=0 nestcnt=0 accum
+  for t in ${JP_OUT:2:-2};do
+    if [ $flipflop -eq 0 ];then # key
+      accum+="{	$t	:	"
+      (( flipflop++ ))
+    elif [ $flipflop -eq 1 ];then # :
+      (( flipflop++ ))
+    elif [ $flipflop -eq 2 ];then # val
+      accum+="$t	"
+      [[ $t == [\[{] ]] && (( nestcnt++ ))
+      [[ $t == [\]}] ]] && (( nestcnt-- ))
+      if [ $nestcnt -eq 0 ];then
+        (( flipflop++ ))
+        jp.push "$accum}	"
+        accum=
+      fi
+    else # ,
+      flipflop=0
+    fi
+  done
 }
 
 function jp.k {
   jp.pop || return
-  local k="$JP_OUT" sep=
+  local k=$JP_OUT match= sep= accum=$'[\t'
   [ "${k:0:1}" == '"' ] || jp.error "k requires a string" || return
-  if (( JP_STACKSIZE > 0 ));then
-    (( JP_REFCNT++ ))
-    IFS= eval "JP_REF_$JP_REFCNT"='['
-    while (( JP_STACKSIZE ));do
-      jp.pop || return
-      if [ "${JP_OUT[0]}" = '{' ];then
-        # handle nested data
-        local j=1 len=$(( "${#JP_OUT[@]}" - 1 ))
-        while (( j < len ));do
-          if [ "$k" = "${JP_OUT[$j]}" ];then
-            (( j+=2 ))
-            jp.get_atom "$j"
-            IFS= eval "JP_REF_$JP_REFCNT"+='($sep "${JP_OUT[@]:$j:$JP_ATOM_LEN}")'
-            sep=','
+  while (( JP_STACKSIZE ));do
+    jp.pop || return
+    if [ "${JP_OUT:0:1}" = '{' ];then
+      [ "${#JP_OUT}" -eq 3 ] && continue # {\t}
+      local flipflop=0 nestcnt=0
+      for t in ${JP_OUT:2:-2};do
+        if [ $flipflop -eq 0 ];then # key
+          if [ "$k" = "$t" ];then
+            match=1
           else
-            (( j+=2 ))
-            jp.get_atom "$j"
+            match=0
           fi
-          (( j+=1+JP_ATOM_LEN ))
-        done
-      else
-        jp.error "only objects have keys" || return
-      fi
-    done
-    IFS= eval "JP_REF_$JP_REFCNT"+='(])'
-    jp.push "JP_REF_$JP_REFCNT"
-  fi
+          (( flipflop++ ))
+        elif [ $flipflop -eq 1 ];then # :
+          (( flipflop++ ))
+        elif [ $flipflop -eq 2 ];then # val
+          if [ $match -eq 1 ];then
+            [ $nestcnt -gt 0 ] && sep=
+            accum+="$sep$t	"
+            sep=$',\t'
+          fi
+          [[ $t == [\[{] ]] && (( nestcnt++ ))
+          [[ $t == [\]}] ]] && (( nestcnt-- ))
+          if [ $nestcnt -eq 0 ];then
+            (( flipflop++ ))
+          fi
+        else # ,
+          flipflop=0
+        fi
+      done
+    else
+      jp.error "only objects have keys" || return
+    fi
+  done
+  jp.push "$accum]	"
 }
 
 function jp.i {
   jp.pop || return
-  local i="$JP_OUT" sep=
+  local i=$JP_OUT accum=$'[\t' sep=
   [[ "$i" =~ ^[0-9]+$ ]] || jp.error "i requires an integer" || return
-  if (( JP_STACKSIZE > 0 ));then
-    (( JP_REFCNT++ ))
-    IFS= eval "JP_REF_$JP_REFCNT"='['
-    while (( JP_STACKSIZE ));do
-      jp.pop || return
-      if [ "${JP_OUT[0]}" = '[' ];then
-        # handle nested data
-        local j=1 real_i=0 len=$(( "${#JP_OUT[@]}" - 1 ))
-        while (( j < len ));do
-          jp.get_atom "$j"
-          if [ $i -eq $real_i ];then
-            IFS= eval "JP_REF_$JP_REFCNT"+='($sep "${JP_OUT[@]:$j:$JP_ATOM_LEN}")'
-            sep=','
-            break;
+  while (( JP_STACKSIZE ));do
+    jp.pop || return
+    if [ "${JP_OUT:0:1}" = '[' ];then
+      [ "${#JP_OUT}" -eq 3 ] && continue # [\t]
+      local nestcnt=0 j=0 flipflop=0
+      for t in ${JP_OUT:2:-2};do
+        if [ $flipflop -eq 0 ];then # val
+          if [ $j -eq $i ];then
+            [ $nestcnt -gt 0 ] && sep=
+            accum+="$sep$t	"
+            sep=$',\t'
           fi
-          (( real_i++ ))
-          (( j+=1+$JP_ATOM_LEN ))
-        done
-      else
-        jp.error "i only works on arrays" || return
-      fi
-    done
-    IFS= eval "JP_REF_$JP_REFCNT"+='(])'
-    jp.push "JP_REF_$JP_REFCNT"
-  fi
+          [[ $t == [\[{] ]] && (( nestcnt++ ))
+          [[ $t == [\]}] ]] && (( nestcnt-- ))
+          [ $nestcnt -eq 0 ] && (( flipflop++ ))
+        else # ,
+          flipflop=0
+          (( j++ ))
+        fi
+      done
+    else
+      jp.error "i only works on arrays" || return
+    fi
+  done
+  jp.push "$accum]	"
 }
 
 function jp.count {
   local count="$JP_STACKSIZE"
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
-  done
-  (( JP_REFCNT++ ))
-  IFS= eval "JP_REF_$JP_REFCNT"='($count)'
-  jp.push "JP_REF_$JP_REFCNT"
+  JP_STACK="$count"$'\t\n'
+  JP_STACKSIZE=1
 }
 
 function jp.++ {
@@ -503,82 +527,74 @@ function jp.++_str {
   local str="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
   while (( JP_STACKSIZE ));do
     jp.pop || return
-    str+="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
+    if [ "${JP_OUT:0:1}" = '"' ];then
+      str+="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
+    else
+      jp.error "++ was expecting a string but found '${JP_OUT:0:1}'" || return
+    fi
   done
-  (( JP_REFCNT++ ))
-  IFS= eval "JP_REF_$JP_REFCNT"='("\"$str\"")'
-  jp.push "JP_REF_$JP_REFCNT"
+  jp.push "\"$str\"	"
 }
 
 function jp.++_collection {
-  local start="$1" end="$2" sep len=$(("${#JP_OUT[@]}"-2))
-  (( JP_REFCNT++ ))
-  if [ $len -gt 0 ];then
-    IFS= eval "JP_REF_$JP_REFCNT"='("$start" "${JP_OUT[@]:1:$len}")'
-    sep=","
-  else
-    IFS= eval "JP_REF_$JP_REFCNT"='("$start")'
+  local start="$1" end="$2" sep accum="${JP_OUT:0:-1}"
+  if [ ${#JP_OUT} -gt 2 ];then
+    sep=",	"
   fi
   while (( JP_STACKSIZE ));do
     jp.pop || return
     if [ "${JP_OUT:0:1}" = "$start" ];then
-      len=$(("${#JP_OUT[@]}"-2))
-      if [ $len -gt 0 ];then
-        eval "JP_REF_$JP_REFCNT"+='($sep "${JP_OUT[@]:1:$len}")'
-        sep=","
+      if [ ${#JP_OUT} -gt 2 ];then
+        accum+="$sep${JP_OUT:1:-1}"
+        sep=",	"
       fi
     else
-      jp.error "++ was expecting a '$start' but found '${JP_OUT[0]}'" || return
+      jp.error "++ was expecting a '$start' but found '${JP_OUT:0:1}'" || return
     fi
   done
-  IFS= eval "JP_REF_$JP_REFCNT"+='($end)'
-  jp.push "JP_REF_$JP_REFCNT"
+  [ "${#accum}" -gt 1 ] && jp.push "$accum$end	"
 }
 
 function jp.collect {
-  (( JP_REFCNT++ ))
-  eval "JP_REF_$JP_REFCNT"='("[")'
+  local accum="[	"
   local sep
   while (( JP_STACKSIZE ));do
     jp.pop || return
-    eval "JP_REF_$JP_REFCNT"+='($sep "${JP_OUT[@]}")'
-    sep=','
+    accum+="$sep$JP_OUT"
+    sep=",	"
   done
-  IFS= eval "JP_REF_$JP_REFCNT"+='(])'
-  jp.push "JP_REF_$JP_REFCNT"
+  jp.push "$accum]	"
 }
 
 function jp._test {
   local num_op="$1" str_op="$2" sep
   jp.pop || return
-  local operand="$JP_OUT" mode
+  local operand=$JP_OUT mode
   if [ ${operand[0]:0:1} = '"' ];then
     mode="str"
-  elif [[ ${JP_OUT[0]:0:1} == [[:digit:]-] ]];then
+  elif [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
     mode="num"
   else
     jp.error "can only compare to strings/numbers but saw '$JP_OUT'" || return
   fi
-  (( JP_REFCNT++ ))
-  eval "JP_REF_$JP_REFCNT"='("[")'
+  local accum="[	"
   while (( JP_STACKSIZE ));do
     jp.pop || return
-    if [ "$mode" = 'str' ] && [ ${JP_OUT[0]:0:1} = '"' ];then
+    if [ "$mode" = 'str' ] && [ ${JP_OUT:0:1} = '"' ];then
       if [ "$JP_OUT" $str_op "$operand" ];then
-        IFS= eval "JP_REF_$JP_REFCNT"+='($sep "$JP_OUT")'
-        sep=','
+        accum+="$sep$JP_OUT"
+        sep=",	"
       fi
-    elif [ "$mode" = 'num' ] && [[ ${JP_OUT[0]:0:1} == [[:digit:]-] ]];then
+    elif [ "$mode" = 'num' ] && [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
       if [ $JP_OUT $num_op $operand ];then
-        IFS= eval "JP_REF_$JP_REFCNT"+='($sep $JP_OUT)'
-        sep=','
+        accum+="$sep$JP_OUT"
+        sep=",	"
       fi
     else
       jp.error "can only filter strings and numbers but saw '$JP_OUT'" || return
     fi
   done
-  IFS= eval "JP_REF_$JP_REFCNT"+='(])'
-  jp.push "JP_REF_$JP_REFCNT"
+  jp.push "$accum]	"
 }
 
 function jp.eq {
@@ -607,43 +623,37 @@ function jp.le {
 
 function jp.=~ {
   jp.pop || return
-  if [ ${JP_OUT[0]:0:1} != '"' ];then
+  if [ ${JP_OUT:0:1} != '"' ];then
     jp.error "=~ requires a string as a pattern" || return
   fi
-  local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" sep
-  (( JP_REFCNT++ ))
-  eval "JP_REF_$JP_REFCNT"='("[")'
+  local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" sep accum="[	"
   while (( JP_STACKSIZE ));do
     jp.pop || return
-    if [ ${JP_OUT[0]:0:1} == '"' ];then # remove "
+    if [ ${JP_OUT:0:1} == '"' ];then # remove "
       if [[ "${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" =~ $operand ]];then
-        IFS= eval "JP_REF_$JP_REFCNT"+='($sep "$JP_OUT")'
-        sep=','
+        accum+="$sep$JP_OUT"
+        sep=",	"
       fi
-    elif [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then # remove "
+    elif [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
       if [[ $JP_OUT =~ $operand ]];then
-        IFS= eval "JP_REF_$JP_REFCNT"+='($sep $JP_OUT)'
-        sep=','
+        accum+="$sep$JP_OUT"
+        sep=",	"
       fi
     else
       jp.error "=~ only matches strings and numbers" || return
     fi
   done
-  eval "JP_REF_$JP_REFCNT"+='(])'
-  jp.push "JP_REF_$JP_REFCNT"
+  jp.push "$accum]	"
 }
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
 function jp.prettyprint {
   local indentchars="$1"
-  local i=0
-  local len=${#JP_OUT[@]}
   local indentlen=${#indentchars}
   local indent=
   local linebuf=
-  while (( i < len  ));do
-    local token="${JP_OUT[$i]}"
+  for token in $JP_OUT;do
     case $token in
       [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
                linebuf="$linebuf$token"
@@ -651,10 +661,6 @@ function jp.prettyprint {
                linebuf="$indent$token"
              fi
              indent="$indent$indentchars"
-             if [[ "${JP_OUT[$(($i+1))]}" != [\]}] ]];then
-               echo -E "$linebuf"
-               linebuf="$indent"
-             fi
              ;;
       [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}"
              if [[ "$linebuf" == *[^[:blank:]] ]];then
@@ -667,26 +673,24 @@ function jp.prettyprint {
              else
                linebuf="$indent$token"
              fi
-             if [[ "${JP_OUT[$(($i+1))]}" != ',' ]];then
-               echo -E "$linebuf"
-               linebuf="$indent"
-             fi
              ;;
         ',') echo -E "$linebuf,"
              linebuf="$indent";;
         ':') linebuf="$linebuf: ";;
-          *) linebuf="$linebuf$token"
+          *) if [[ "$linebuf" == *[^[:blank:]] ]];then
+               echo -E "$linebuf"
+               linebuf="$indent$token"
+             else
+                linebuf="$linebuf$token"
+             fi
     esac
-    (( i++ ))
   done
   [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
 }
 
-function jp.uglyprint {
-  local i=0 len=${#JP_OUT[@]}
-  while (( i < len  ));do
-    echo -nE "${JP_OUT[$i]}"
-    (( i++ ))
+function jp.plainprint {
+  for t in $JP_OUT;do
+    echo -nE "$t"
   done
   echo
 }
@@ -697,9 +701,7 @@ function jp.run {
   # parse stdin
   if [ $JP_INPUT ];then
     jp.parse_json || return
-    (( JP_REFCNT++ ))
-    eval "JP_REF_$JP_REFCNT"='("${JP_TOKENS[@]}")'
-    jp.push "JP_REF_$JP_REFCNT"
+    jp.push "$JP_TOKENS"
   fi
 
   # process args
@@ -708,14 +710,12 @@ function jp.run {
     if [ ${arg:0:1} = '.' ];then # transformation command
       eval "jp$arg" || return
     else # json to parse
-      JP_TOKENS=()
+      JP_TOKENS=
       JP_LINE=0
       JP_COL=0
       JP_BUF=("$arg")
       jp.parse_json || return
-      (( JP_REFCNT++ ))
-      eval "JP_REF_$JP_REFCNT"='("${JP_TOKENS[@]}")'
-      jp.push "JP_REF_$JP_REFCNT"
+      jp.push "$JP_TOKENS"
     fi
   done
   JP_LINE="$in_line" # restore the stdin parse position
@@ -728,7 +728,7 @@ function jp.run {
     if [ $JP_PRETTY ];then
       jp.prettyprint "$JP_INDENT"
     else
-      jp.uglyprint
+      jp.plainprint
     fi
   done
   return 0

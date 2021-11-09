@@ -16,7 +16,7 @@ else
   fail "keys on non-object stack does not error"
 fi
 
-empty=$(echo '{}' | ./jp .keys)
+empty=$(./jp '{}' .keys)
 if [ "$empty" = '' ];then
   pass "keys on empty returns nothing"
 else
@@ -24,12 +24,12 @@ else
   fail "keys on empty doesn't return nothing: $emptyesc"
 fi
 
-two=$(echo '{" a b c ":1,"b":2}' | ./jp .keys)
+two=$(./jp '{" a b c ":1,"b":2}' .keys)
 if [ "$two" = $'"b"\n" a b c "' ];then
-  pass "keys returns two"
+  pass "keys returns two strings"
 else
   printf -v twoesc "%q" "$two"
-  fail "keys doesn't return two: $twoesc"
+  fail "keys doesn't return two strings: $twoesc"
 fi
 
 end

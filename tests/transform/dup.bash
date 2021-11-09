@@ -17,8 +17,8 @@ else
   fail "dup once: got $onceesc"
 fi
 
-twice=$(./jp '[" a b c "]' .dup .dup)
-if [ "$twice" = $'[" a b c "]\n[" a b c "]\n[" a b c "]' ];then
+twice=$(./jp '[" a\tb c "]' .dup .dup)
+if [ "$twice" = $'[" a\\tb c "]\n[" a\\tb c "]\n[" a\\tb c "]' ];then
   pass "dup twice"
 else
   printf -v twiceesc "%q" "$twice"

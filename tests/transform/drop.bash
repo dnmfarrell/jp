@@ -16,7 +16,7 @@ else
   fail "drop drop more items than stack doesn't error"
 fi
 
-$(echo 1 | ./jp 2.5 .drop 2>/dev/null)
+$(./jp 1 2.5 .drop 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "drop non-integer errors"
 else

@@ -11,6 +11,15 @@ else
   fail "-p doesn't force pretty output on non-tty: $outputesc"
 fi
 
+expect=$'[\n  1,\n  2,\n  [\n    3,\n    4,\n    {\n      "a": 5,\n      "b": 6\n    }\n  ],\n  7\n]'
+output=$(./jp -p '[1,2,[3,4,{"a":5,"b":6}],7]')
+if [ "$output" = $expect ];then
+  pass "pretty indents as expected"
+else
+  printf -v outputesc "%q" "$output"
+  fail "pretty doesn't indent as expected: $outputesc"
+fi
+
 which socat 1>/dev/null # to simulate tty
 if [ $? -eq 0 ];then
   expect=$'[\r\n  1,\r\n  2,\r\n  3\r\n]'

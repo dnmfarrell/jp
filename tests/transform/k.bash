@@ -23,7 +23,7 @@ else
   fail "k non-string key does not error"
 fi
 
-empty=$(echo '{}' | ./jp '"f"' .k)
+empty=$(./jp '{}' '"f"' .k)
 if [ "$empty" = '[]' ];then
   pass "k on empty object returns []"
 else
@@ -31,7 +31,7 @@ else
   fail "k on empty object doesn't return []: $emptyesc"
 fi
 
-nomatch=$(echo '{"a":1}' | ./jp '"f"' .k)
+nomatch=$(./jp '{"a":1}' '"f"' .k)
 if [ "$nomatch" = '[]' ];then
   pass "k unmatched returns []"
 else
@@ -44,7 +44,15 @@ if [ "$onematch" = '[1]' ];then
   pass "k one match returns expected"
 else
   printf -v onematchesc "%q" "$onematch"
-  fail "k on unmatched doesn't return expected: $onematchesc"
+  fail "k one match doesn't return expected: $onematchesc"
+fi
+
+nestmatch=$(./jp -P '{"a":{"b":1,"c":2}}' '"a"' .k)
+if [ "$nestmatch" = '[{"b":1,"c":2}]' ];then
+  pass "k nest match returns expected"
+else
+  printf -v nestmatchesc "%q" "$nestmatch"
+  fail "k nest match doesn't return expected: $nestmatchesc"
 fi
 
 multimatch=$(echo '{"a":1,"a":2}' | ./jp '{"a":3}' '"a"' .k)

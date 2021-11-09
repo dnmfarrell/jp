@@ -6,10 +6,10 @@ function test_♥_token {
   JP_BUF=('"\u2665"')
   jp.chomp
   jp.string
-  if [[ "$JP_TOKENS" == '"\u2665"' ]];then
+  if [ "${JP_TOKENS:0:-1}" == '"\u2665"' ];then
     pass "parse unicode '♥' token"
   else
-    fail "parse unicode '♥' token"
+    fail "parse unicode '♥' token failed: '${JP_TOKENS:0:-1}'"
   fi
 }
 

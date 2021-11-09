@@ -44,7 +44,7 @@ if [ "$onematch" = '[1]' ];then
   pass "i one match returns expected"
 else
   printf -v onematchesc "%q" "$onematch"
-  fail "i on unmatched doesn't return expected: $onematchesc"
+  fail "i one match  doesn't return expected: $onematchesc"
 fi
 
 multimatch=$(./jp '[true,{" a b ":1}]' '[null]' '[1,[]]' 1 .i)
@@ -53,6 +53,14 @@ if [ "$multimatch" = '[[],{" a b ":1}]' ];then
 else
   printf -v multimatchesc "%q" "$multimatch"
   fail "i multi match doesn't return expected: $multimatchesc"
+fi
+
+multinest=$(./jp '[[1,2],3]' '[{"a ":[4]}]' 0 .i)
+if [ "$multinest" = '[{"a ":[4]},[1,2]]' ];then
+  pass "i multi nest match returns expected"
+else
+  printf -v multinestesc "%q" "$multinest"
+  fail "i multi nest match doesn't return expected: $multinestesc"
 fi
 
 end

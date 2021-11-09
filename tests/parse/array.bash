@@ -6,23 +6,22 @@ function test_good_token {
   JP_BUF=('["octocat","atom","electron","api"]')
   jp.chomp
   jp.array
-  echo "${JP_TOKENS[1]}"
-  if [ "${JP_TOKENS[0]}" = '[' ];then
+  if [ "${JP_TOKENS:0:1}" = '[' ];then
     pass "parse opening bracket token"
   else
     fail "parse opening bracket token"
   fi
-  if [ ${JP_TOKENS[1]} = '"octocat"' ];then
+  if [ ${JP_TOKENS:2:9} = '"octocat"' ];then
     pass "parse first member token"
   else
-    fail "parse first member token"
+    fail "parse first member token failed: '${JP_TOKENS:2:8}'"
   fi
-  if [ ${JP_TOKENS[7]} = '"api"' ];then
+  if [ ${JP_TOKENS:36:5} = '"api"' ];then
     pass "parse last member token"
   else
-    fail "parse last member token"
+    fail "parse last member token failed: '${JP_TOKENS:37:5}'"
   fi
-  if [ ${JP_TOKENS[8]} = ']' ];then
+  if [ ${JP_TOKENS:42:1} = ']' ];then
     pass "parse closing bracket token"
   else
     fail "parse closing bracket token"
