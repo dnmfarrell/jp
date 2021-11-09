@@ -20,14 +20,14 @@ Options
 
 Parse
 -----
-jp parses the incoming JSON stream into an array of tokens that are pushed onto its stack. If it detects any malformed JSON it will emit an error and exit non-zero.
+If jp received any input, it parses the incoming JSON stream into an array of tokens that are pushed onto its stack. If it detects any malformed JSON it will emit an error and exit non-zero.
 
-jp passes 314/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failed tests are all related to Byte Order Marks:
+jp passes 314/318 of the [JSONTestSuite](https://github.com/nst/JSONTestSuite) parsing tests, making it one of the strongest validators. The failed tests are all related to null byte detection:
 
-     i_string_utf16LE_no_BOM.json
-     i_string_UTF-16LE_with_BOM.json
-     i_string_utf16BE_no_BOM.json
-     i_structure_UTF-8_BOM_empty_object.json
+    n_multidigit_number_then_00.json
+    n_string_unescaped_crtl_char.json
+    n_string_unescaped_newline.json
+    n_structure_null-byte-outside-string.json
 
 Unlike some parsers, jp preserves object key order, and permits duplicate keys in objects.
 

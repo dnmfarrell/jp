@@ -5,11 +5,10 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-declare JP_LINE=0 JP_COL=0 JP_INDENT="  "
 IFS=$'\t' # tokens are tab delimited
 
 function jp.error {
-  echo "Error: $1 at line $JP_LINE, column $JP_COL" >&2
+  echo "Error: $1 at line $JP_LINE, column $JP_IDX" >&2
   return 1
 }
 
@@ -21,17 +20,29 @@ function jp.trace {
 }
 
 # BEGIN PARSE FUNCTIONS
+function jp.readline {
+  JP_IDX=0 JP_BUF_MAXLEN=0 JP_LINE=1
+  if [ $JP_INPUT ];then
+    IFS=$'\n' read -r JP_BUF
+    JP_BUF_MAXLEN="${#JP_BUF}"
+  fi
+  return 0
+}
+
 function jp.chomp {
-  if (( JP_COL < "${#JP_BUF[$JP_LINE]}" ));then
-    JP_C="${JP_BUF[$JP_LINE]:$JP_COL:1}"
-    (( JP_COL++ ))
-  elif (( JP_COL == "${#JP_BUF[$JP_LINE]}" ));then
+  if [ $JP_BUF_MAXLEN -eq 0 ];then
+    JP_C=''
+  elif [ $JP_IDX -lt $JP_BUF_MAXLEN ];then
+    JP_C="${JP_BUF:$JP_IDX:1}"
+    (( JP_IDX++ ))
+  elif [ $JP_IDX -eq $JP_BUF_MAXLEN ];then
     JP_C=$'\n'
-    (( JP_COL++ ))
+    (( JP_IDX++ ))
   else
+    JP_IDX=0
     (( JP_LINE++ ))
-    JP_C="${JP_BUF[$JP_LINE]:0:1}"
-    JP_COL=1
+    jp.readline
+    jp.chomp
   fi
 }
 
@@ -274,13 +285,13 @@ function jp.parse_json {
   while [[ "$JP_C" == [[:blank:]] ]];do
     jp.chomp
   done
-  [[ "$JP_C" == $'\n' ]] || jp.error "expected '\n' but found $JP_C" || return
+  [ "$JP_C" = $'\n' ] || jp.error "expected '\n' but found $JP_C" || return
 }
 
 function jp.detect_nullbyte {
   local buf=
   IFS= read -rd '' buf
-  [[ -z "$buf" ]] || jp.error "received input after null byte" || return
+  [ -z "$buf" ] || jp.error "received input after null byte" || return
 }
 # END PARSE FUNCTIONS
 
@@ -706,20 +717,21 @@ function jp.run {
   fi
 
   # process args
-  local in_line="$JP_LINE" in_col="$JP_COL" # save stdin parse position
+  local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
   for arg in "$@";do
     if [ ${arg:0:1} = '.' ];then # transformation command
       eval "jp$arg" || return
     else # json to parse
-      JP_LINE=0
-      JP_COL=0
-      JP_BUF=("$arg")
+      JP_IDX=0
+      JP_LINE=1
+      JP_BUF="$arg"
+      JP_BUF_MAXLEN="${#JP_BUF}"
       jp.parse_json || return
       jp.push "$JP_TOKENS"
     fi
   done
-  JP_LINE="$in_line" # restore the stdin parse position
-  JP_COL="$in_col"
+  JP_IDX="$in_idx" # restore stdin parse state
+  JP_LINE="$in_line"
 
   # print
   [ $JP_SILENT ] && return 0
@@ -735,6 +747,7 @@ function jp.run {
 }
 
 function jp.main {
+  JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
   [ -t 0 ] || JP_INPUT=1  # read input if being piped
   while getopts ":pPsti:" opt; do
@@ -747,13 +760,15 @@ function jp.main {
     esac
     shift $((OPTIND-1))
   done
-  [ $JP_INPUT ] && IFS=$'\n' read -rd '' -a JP_BUF
+  [ $JP_INPUT ] && jp.readline
   while :;do
     jp.run "$@" || return
-    (( JP_LINE+1 < "${#JP_BUF[@]}" )) && continue # more lines to parse
-    break
+    if [ $JP_INPUT ];then
+      jp.readline && [ $JP_BUF_MAXLEN -eq 0 ] && break # no more input
+    else
+      break
+    fi
   done
-  [ -z $JP_INPUT ] || jp.detect_nullbyte || return
   return 0
 }
 [ "$BASH_SOURCE" == "$0" ] && jp.main "$@"

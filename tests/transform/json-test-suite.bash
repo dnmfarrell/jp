@@ -14,6 +14,7 @@ function test_transform {
 }
 
 for file in tests/share/JSONTestSuite/test_transform/*;do
+  echo "$file"
   test_transform "$file"
 done
 
