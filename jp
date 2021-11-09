@@ -267,6 +267,7 @@ function jp.read_next {
 }
 
 function jp.parse_json {
+  JP_TOKENS=
   jp.chomp
   jp.drop_ws
   jp.read_next || return
@@ -710,7 +711,6 @@ function jp.run {
     if [ ${arg:0:1} = '.' ];then # transformation command
       eval "jp$arg" || return
     else # json to parse
-      JP_TOKENS=
       JP_LINE=0
       JP_COL=0
       JP_BUF=("$arg")
