@@ -3,7 +3,7 @@ source "test-bootstrap.bash"
 IFS=
 
 expect=$'[\n\t1,\n\t2,\n\t3\n]'
-output=$(./jp -pni '	' $expect)
+output=$(./jp -pi '	' $expect)
 if [ "$output" = $expect ];then
   pass "-i forces indent to tab"
 else

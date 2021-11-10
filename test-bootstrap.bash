@@ -28,7 +28,8 @@ function skip {
 }
 
 function todo {
-  pass "# TODO $1"
+  (( JP_TEST_COUNT++ ))
+  echo "not ok $JP_TEST_COUNT # TODO $1"
 }
 
 function end {

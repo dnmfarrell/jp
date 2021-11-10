@@ -1,6 +1,5 @@
 #!/bin/bash
 source "test-bootstrap.bash"
-IFS=
 
 empty=$(./jp .pop 2>/dev/null)
 if [ $? -eq 1 ];then
@@ -9,7 +8,7 @@ else
   fail "pop empty stack does not error"
 fi
 
-popone=$(echo '{"a":1}' | ./jp .pop)
+popone=$(./jp '{"a":1}' .pop)
 if [ "$popone" = '' ];then
   pass "pop popone"
 else

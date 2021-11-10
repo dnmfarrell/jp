@@ -5,22 +5,26 @@
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-IFS=$'\t' # tokens are tab delimited
+JP_NL='
+'
+JP_CR=''
+JP_TAB='	'
+IFS="$JP_TAB" # tokens are tab delimited
 
-function jp.error {
+jp_error () {
   echo "Error: $1 at line $JP_LINE, column $JP_IDX" >&2
   return 1
 }
 
-function jp.trace {
+jp_trace () { # bash only
   # ignore non-jp functions and duplicate DEBUG signals
-  if [[ "$1" == "jp."* ]] && [[ "$1" != "${FUNCNAME[1]}" ]]; then
+  if [[ "$1" == "jp_"* ]] && [[ "$1" != "${FUNCNAME[1]}" ]]; then
     printf "%s\t%s\n" "$EPOCHREALTIME" "$1" >&2
   fi
 }
 
 # BEGIN PARSE FUNCTIONS
-function jp.readline {
+jp_readline () {
   JP_IDX=0 JP_BUF_MAXLEN=0 JP_LINE=1
   if [ $JP_INPUT ];then
     IFS=$'\n' read -r JP_BUF
@@ -29,360 +33,365 @@ function jp.readline {
   return 0
 }
 
-function jp.chomp {
+jp_chomp () {
   if [ $JP_BUF_MAXLEN -eq 0 ];then
     JP_C=''
   elif [ $JP_IDX -lt $JP_BUF_MAXLEN ];then
     JP_C="${JP_BUF:$JP_IDX:1}"
-    (( JP_IDX++ ))
+    JP_IDX=$(( JP_IDX + 1 ))
   elif [ $JP_IDX -eq $JP_BUF_MAXLEN ];then
     JP_C=$'\n'
-    (( JP_IDX++ ))
+    JP_IDX=$(( JP_IDX + 1 ))
   else
     JP_IDX=0
-    (( JP_LINE++ ))
-    jp.readline
-    jp.chomp
+    JP_LINE=$(( JP_LINE + 1 ))
+    jp_readline
+    jp_chomp
   fi
 }
 
-function jp.drop_ws {
+jp_drop_ws () {
   while :;do
-    if [[ "$JP_C" == [[:blank:]$'\n\r'] ]];then
-      jp.chomp
-    else
-      break
-    fi
+    case "$JP_C" in
+      " ") jp_chomp;;
+      "$JP_NL") jp_chomp;;
+      "$JP_CR") jp_chomp;;
+      "$JP_TAB") jp_chomp;;
+      *) break;;
+    esac
   done
 }
 
-function jp.expect {
-  if [[ "$JP_C" != "$1" ]];then
+jp_expect () {
+  if [ "$JP_C" != "$1" ];then
     local msg
     printf -v msg "expected %q but found %q" "$1" "$JP_C"
-    jp.error "$msg" || return
+    jp_error "$msg" || return
   fi
 }
 
-function jp.array {
+jp_array () {
   JP_TOKENS+="[	"
-  jp.chomp
-  jp.drop_ws
-  if [[ "$JP_C" != ']' ]];then
-    jp.read_next || return
+  jp_chomp
+  jp_drop_ws
+  if [ "$JP_C" != ']' ];then
+    jp_read_next || return
     while :;do
-      [[ "$JP_C" != '' ]] || jp.error "unterminated array: didn't find ]" || return
-      jp.drop_ws
-      if [[ "$JP_C" == ']' ]];then
+      [ "$JP_C" != '' ] || jp_error "unterminated array: didn't find ]" || return
+      jp_drop_ws
+      if [ "$JP_C" = ']' ];then
         break
-      elif [[ "$JP_C" == ',' ]];then
+      elif [ "$JP_C" = ',' ];then
         JP_TOKENS+=",	"
-        jp.chomp
-        jp.drop_ws
-        jp.read_next || return
+        jp_chomp
+        jp_drop_ws
+        jp_read_next || return
       else
-        jp.error "expected , or ] but found '$JP_C'" || return
+        jp_error "expected , or ] but found '$JP_C'" || return
       fi
     done
   fi
   JP_TOKENS+="]	"
-  jp.chomp
+  jp_chomp
 }
 
-function jp.object {
+jp_object () {
   JP_TOKENS+="{	"
-  jp.chomp
-  jp.drop_ws
-  if [[ "$JP_C" != '}' ]];then
-    jp.expect '"' || return
-    jp.string
-    jp.drop_ws
-    jp.expect ":" || return
+  jp_chomp
+  jp_drop_ws
+  if [ "$JP_C" != '}' ];then
+    jp_expect '"' || return
+    jp_string
+    jp_drop_ws
+    jp_expect ":" || return
     JP_TOKENS+=":	"
-    jp.chomp
-    jp.drop_ws
-    jp.read_next || return
+    jp_chomp
+    jp_drop_ws
+    jp_read_next || return
     while :;do
-      [[ "$JP_C" != '' ]] || jp.error "unterminated object: didn't find }" return
-      jp.drop_ws
-      if [[ "$JP_C" == '}' ]];then
+      [ "$JP_C" != '' ] || jp_error "unterminated object: didn't find }" return
+      jp_drop_ws
+      if [ "$JP_C" = '}' ];then
         break
-      elif [[ "$JP_C" == ',' ]];then
+      elif [ "$JP_C" = ',' ];then
         JP_TOKENS+=",	"
-        jp.chomp
-        jp.drop_ws
-        jp.expect '"' || return
-        jp.string
-        jp.drop_ws
-        jp.expect ":" || return
+        jp_chomp
+        jp_drop_ws
+        jp_expect '"' || return
+        jp_string
+        jp_drop_ws
+        jp_expect ":" || return
         JP_TOKENS+=":	"
-        jp.chomp
-        jp.drop_ws
-        jp.read_next || return
+        jp_chomp
+        jp_drop_ws
+        jp_read_next || return
       else
-        jp.error "expected , or } but found $JP_C" || return
+        jp_error "expected , or } but found $JP_C" || return
       fi
     done
   fi
   JP_TOKENS+="}	"
-  jp.chomp
+  jp_chomp
 }
 
-function jp.number {
+jp_number () {
   local num="$JP_C" seendot= seenexp=
-  jp.chomp
-  if [[ "$num" == '-' ]];then # negative number
-    [[ "$JP_C" == [[:digit:]] ]] || jp.error "minus not followed by digit: $num$JP_C" || return
-    if [[ "$JP_C" == '0' ]];then
+  jp_chomp
+  if [ "$num" = '-' ];then # negative number
+    [[ "$JP_C" == [[:digit:]] ]] || jp_error "minus not followed by digit: $num$JP_C" || return
+    if [ "$JP_C" = '0' ];then
       num="$num$JP_C"
-      jp.chomp
-      [[ "$JP_C" != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
+      jp_chomp
+      [[ "$JP_C" != [[:digit:]] ]] || jp_error "number starts with zero: $num$JP_C" || return
     fi
-  elif [[ "$num" == '0' ]];then
-    [[ $JP_C != [[:digit:]] ]] || jp.error "number starts with zero: $num$JP_C" || return
+  elif [ "$num" = '0' ];then
+    [[ $JP_C != [[:digit:]] ]] || jp_error "number starts with zero: $num$JP_C" || return
   fi
   while :;do
     if [[ "$JP_C" == [[:digit:]] ]];then
       num="$num$JP_C"
-    elif [[ "$JP_C" == . ]];then
-      if [[ "$seendot" ]]; then
-        jp.error "number has too many dots in it: $num$JP_C" || return
-      elif [[ "$seenexp" ]]; then
-        jp.error "exponents cannot contain dots: $num$JP_C" || return
+    elif [ "$JP_C" = . ];then
+      if [ "$seendot" ]; then
+        jp_error "number has too many dots in it: $num$JP_C" || return
+      elif [ "$seenexp" ]; then
+        jp_error "exponents cannot contain dots: $num$JP_C" || return
       else
         num="$num$JP_C"
         seendot=1
-        jp.chomp
-        [[ "$JP_C" == [[:digit:]] ]] || jp.error "dot not followed by digit: $num$JP_C" || return
+        jp_chomp
+        [[ "$JP_C" == [[:digit:]] ]] || jp_error "dot not followed by digit: $num$JP_C" || return
         continue
       fi
     elif [[ $JP_C == [Ee] ]];then
-      if [[ $seenexp ]]; then
-        jp.error "number has too many Es in it: $num$JP_C" || return
+      if [ $seenexp ]; then
+        jp_error "number has too many Es in it: $num$JP_C" || return
       fi
       seenexp=1
       num="$num$JP_C"
-      jp.chomp
+      jp_chomp
       if [[ $JP_C == [+-] ]];then
         num="$num$JP_C"
-        jp.chomp
+        jp_chomp
       fi
       if [[ $JP_C != [[:digit:]] ]];then
-        jp.error "a number must follow an exponent or sign: $num$JP_C" || return
+        jp_error "a number must follow an exponent or sign: $num$JP_C" || return
       fi
       num="$num$JP_C"
     else
       JP_TOKENS+="$num	"
       break
     fi
-    jp.chomp
+    jp_chomp
   done
   lastchar=${num:$(( ${#num}-1 )):1}
-  [[ "$lastchar" != [Ee.+-] ]] || jp.error "invalid number $num ($lastchar)" || return
+  [[ "$lastchar" != [Ee.+-] ]] || jp_error "invalid number $num ($lastchar)" || return
 }
 
-function jp.string {
+jp_string () {
   local str= start_line="$JP_LINE"
   while :;do
-    [[ "$JP_C" != '' ]] || jp.error "unterminated string: didn't find \"" || return
-    jp.chomp
-    if [[ "$JP_LINE" > "$start_line" ]];then
-      jp.error "unescaped newline in string" || return
-    elif [[ "$JP_C" == $'\t' ]];then
-      jp.error "unescaped tab in string" || return
-    elif [[ "$JP_C" == $'\\' ]];then # handle escapes
+    [ "$JP_C" != '' ] || jp_error "unterminated string: didn't find \"" || return
+    jp_chomp
+    if [ "$JP_LINE" -gt "$start_line" ];then
+      jp_error "unescaped newline in string" || return
+    elif [ "$JP_C" = $'\t' ];then
+      jp_error "unescaped tab in string" || return
+    elif [ "$JP_C" = $'\\' ];then # handle escapes
       str="$str$JP_C"
-      jp.chomp
-      if [[ "$JP_C" == u ]];then # unicode
+      jp_chomp
+      if [ "$JP_C" = u ];then # unicode
         local esc="u"
         for i in 1 2 3 4;do
-          jp.chomp
-          [[ "$JP_C" == [0-9A-Fa-f] ]] || jp.error "invalid Unicode escape sequence \\$esc$JP_C" || return
+          jp_chomp
+          [[ "$JP_C" == [0-9A-Fa-f] ]] || jp_error "invalid Unicode escape sequence \\$esc$JP_C" || return
           esc+="$JP_C"
         done
         JP_C="$esc"
       elif [[ "$JP_C" != [bfnrt\"$'\\'/] ]];then
-        jp.error "invalid escape sequence in string: \\$JP_C" || return
+        jp_error "invalid escape sequence in string: \\$JP_C" || return
       fi
-    elif [[ "$JP_C" == '"' ]];then
+    elif [ "$JP_C" = '"' ];then
       JP_TOKENS+="\"$str\"	"
       break
     fi
     str+="$JP_C"
   done
-  jp.chomp
+  jp_chomp
 }
 
-function jp.null {
-  jp.chomp
-  if [[ "$JP_C" == "u" ]];then
-    jp.chomp
-    if [[ "$JP_C" == "l" ]];then
-      jp.chomp
-      if [[ "$JP_C" == "l" ]];then
+jp_null () {
+  jp_chomp
+  if [ "$JP_C" = "u" ];then
+    jp_chomp
+    if [ "$JP_C" = "l" ];then
+      jp_chomp
+      if [ "$JP_C" = "l" ];then
         JP_TOKENS+="null	"
-        jp.chomp
+        jp_chomp
         return
       fi
     fi
   fi
-  jp.error "expected 'null' but saw '$JP_C'" || return
+  jp_error "expected 'null' but saw '$JP_C'" || return
 }
 
-function jp.bool_true {
-  jp.chomp
-  if [[ "$JP_C" == "r" ]];then
-    jp.chomp
-    if [[ "$JP_C" == "u" ]];then
-      jp.chomp
-      if [[ "$JP_C" == "e" ]];then
+jp_bool_true () {
+  jp_chomp
+  if [ "$JP_C" = "r" ];then
+    jp_chomp
+    if [ "$JP_C" = "u" ];then
+      jp_chomp
+      if [ "$JP_C" = "e" ];then
         JP_TOKENS+="true	"
-        jp.chomp
+        jp_chomp
         return
       fi
     fi
   fi
-  jp.error "expected 'true' but saw '$JP_C'" || return
+  jp_error "expected 'true' but saw '$JP_C'" || return
 }
 
-function jp.bool_false {
-  jp.chomp
-  if [[ "$JP_C" == "a" ]];then
-    jp.chomp
-    if [[ "$JP_C" == "l" ]];then
-      jp.chomp
-      if [[ "$JP_C" == "s" ]];then
-        jp.chomp
-        if [[ "$JP_C" == "e" ]];then
+jp_bool_false () {
+  jp_chomp
+  if [ "$JP_C" = "a" ];then
+    jp_chomp
+    if [ "$JP_C" = "l" ];then
+      jp_chomp
+      if [ "$JP_C" = "s" ];then
+        jp_chomp
+        if [ "$JP_C" = "e" ];then
           JP_TOKENS+="false	"
-          jp.chomp
+          jp_chomp
           return
         fi
       fi
     fi
   fi
-  jp.error "expected 'false' but saw '$JP_C'" || return
+  jp_error "expected 'false' but saw '$JP_C'" || return
 }
 
-function jp.read_next {
+jp_read_next () {
   case "$JP_C" in
-    [[:digit:]-]) jp.number;;
-    '"') jp.string;;
-    'n') jp.null;;
-    't') jp.bool_true;;
-    'f') jp.bool_false;;
-    '[') jp.array;;
-    '{') jp.object;;
-    *) jp.error "expected 0-9, \", 't', 'f', '[', or '{' but got: '$JP_C'"
+    [[:digit:]-]) jp_number;;
+    '"') jp_string;;
+    'n') jp_null;;
+    't') jp_bool_true;;
+    'f') jp_bool_false;;
+    '[') jp_array;;
+    '{') jp_object;;
+    *) jp_error "expected 0-9, \", 't', 'f', '[', or '{' but got: '$JP_C'"
   esac
 }
 
-function jp.parse_json {
+jp_parse_json () {
   JP_TOKENS=
-  jp.chomp
-  jp.drop_ws
-  jp.read_next || return
+  jp_chomp
+  jp_drop_ws
+  jp_read_next || return
   while [[ "$JP_C" == [[:blank:]] ]];do
-    jp.chomp
+    jp_chomp
   done
-  [ "$JP_C" = $'\n' ] || jp.error "expected '\n' but found $JP_C" || return
+  [ "$JP_C" = $'\n' ] || jp_error "expected '\n' but found $JP_C" || return
 }
 
-function jp.detect_nullbyte {
+jp_detect_nullbyte () {
   local buf=
   IFS= read -rd '' buf
-  [ -z "$buf" ] || jp.error "received input after null byte" || return
+  [ -z "$buf" ] || jp_error "received input after null byte" || return
 }
 # END PARSE FUNCTIONS
 
 # BEGIN TRANSFORM FUNCTIONS
-function jp.push {
+jp_push () {
   JP_STACK="$1"$'\n'"$JP_STACK" # \n delimited
-  (( JP_STACKSIZE++ ))
+  JP_STACKSIZE=$(( JP_STACKSIZE + 1 ))
   return 0
 }
 
-function jp.pop {
-  (( JP_STACKSIZE-- )) || jp.error "cannot pop an empty stack" || return
-  local sep=$'\t\n'
-  if (( JP_STACKSIZE > 0 ));then
-    JP_OUT="${JP_STACK%%$sep*}"
-    JP_STACK="${JP_STACK#*$sep}"
-  else
+jp_pop () {
+  if [ $JP_STACKSIZE -eq 0 ];then
+    jp_error "cannot pop an empty stack" || return
+  elif [ $JP_STACKSIZE -eq 1 ];then
     JP_OUT="${JP_STACK:0:-2}"
     JP_STACK=
+  else
+    local sep=$'\t\n'
+    JP_OUT="${JP_STACK%%$sep*}"
+    JP_STACK="${JP_STACK#*$sep}"
   fi
+  JP_STACKSIZE=$(( JP_STACKSIZE - 1 ))
 }
 
-function jp.drop {
-  jp.pop || return
+jp_drop () {
+  jp_pop || return
   if [[ $JP_OUT =~ ^[0-9]+$ ]];then
-    jp_drop_count="$JP_OUT"
-    while (( jp_drop_count-- ));do
-      jp.pop || return
+    local drop_count="$JP_OUT"
+    while [ $drop_count -gt 0 ];do
+      jp_pop || return
+      drop_count=$(( drop_count - 1 ))
     done
   else
-    jp.error "can only drop a positive number of items but saw '$JP_OUT'" || return
+    jp_error "can only drop a positive number of items but saw '$JP_OUT'" || return
   fi
 }
 
-function jp.dup {
-  (( JP_STACKSIZE > 0 )) || jp.error "cannot dup an empty stack" || return
-  jp.pop
-  jp.push "$JP_OUT	"
-  jp.push "$JP_OUT	"
+jp_dup () {
+  [ $JP_STACKSIZE -gt 0 ] || jp_error "cannot dup an empty stack" || return
+  jp_pop
+  jp_push "$JP_OUT	"
+  jp_push "$JP_OUT	"
 }
 
-function jp.swap {
-  (( JP_STACKSIZE > 1 )) || jp.error 'swap needs two items on the stack' || return
-  jp.pop
+jp_swap () {
+  [ $JP_STACKSIZE -gt 1 ] || jp_error 'swap needs two items on the stack' || return
+  jp_pop
   local swap_buf="$JP_OUT"
-  jp.pop
-  jp.push "$swap_buf	"
-  jp.push "$JP_OUT	"
+  jp_pop
+  jp_push "$swap_buf	"
+  jp_push "$JP_OUT	"
 }
 
-function jp.keys {
-  jp.pop || return
+jp_keys () {
+  jp_pop || return
   if [ "${JP_OUT:0:1}" = '{' ];then
     [ "${#JP_OUT}" -eq 3 ] && return # {\t}
     local flipflop=0 nestcnt=0
     for t in ${JP_OUT:2:-2};do
       if [ $flipflop -eq 0 ];then # key
-        jp.push "$t	"
-        (( flipflop++ ))
+        jp_push "$t	"
+        flipflop=$(( flipflop + 1 ))
       elif [ $flipflop -eq 1 ];then # :
-        (( flipflop++ ))
+        flipflop=$(( flipflop + 1 ))
       elif [ $flipflop -eq 2 ];then # val
-        [[ $t == [\[{] ]] && (( nestcnt++ ))
-        [[ $t == [\]}] ]] && (( nestcnt-- ))
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
         if [ $nestcnt -eq 0 ];then
-          (( flipflop++ ))
+          flipflop=$(( flipflop + 1 ))
         fi
       else # ,
         flipflop=0
       fi
     done
   else
-    jp.error "keys only works on objects" || return
+    jp_error "keys only works on objects" || return
   fi
 }
 
-function jp.vals_obj {
+jp_vals_obj () {
   [ "${#JP_OUT}" -eq 3 ] && return # {\t}
   local flipflop=0 nestcnt=0 accum
   for t in ${JP_OUT:2:-2};do
     if [ $flipflop -eq 0 ];then # key
-      (( flipflop++ ))
+      flipflop=$(( flipflop + 1 ))
     elif [ $flipflop -eq 1 ];then # :
-      (( flipflop++ ))
+      flipflop=$(( flipflop + 1 ))
     elif [ $flipflop -eq 2 ];then # val
       accum+="$t	"
-      [[ $t == [\[{] ]] && (( nestcnt++ ))
-      [[ $t == [\]}] ]] && (( nestcnt-- ))
+      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
       if [ $nestcnt -eq 0 ];then
-        (( flipflop++ ))
-        jp.push "$accum"
+        flipflop=$(( flipflop + 1 ))
+        jp_push "$accum"
         accum=
       fi
     else # ,
@@ -391,51 +400,51 @@ function jp.vals_obj {
   done
 }
 
-function jp.vals_arr {
+jp_vals_arr () {
   [ "${#JP_OUT}" -eq 3 ] && return # [\t]
   local nestcnt=0 accum
   for t in ${JP_OUT:2:-2};do
     if [ $nestcnt -gt 0 ] || [ "$t" != ',' ];then
       accum+="$t	"
-      [[ $t == [\[{] ]] && (( nestcnt++ ))
-      [[ $t == [\]}] ]] && (( nestcnt-- ))
+      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
       if [ $nestcnt -eq 0 ];then
-        jp.push "$accum"
+        jp_push "$accum"
         accum=
       fi
     fi
   done
 }
 
-function jp.vals {
-  jp.pop || return
+jp_vals () {
+  jp_pop || return
   if [ "${JP_OUT:0:1}" = '{' ];then
-    jp.vals_obj
+    jp_vals_obj
   elif [ "${JP_OUT:0:1}" = '[' ];then
-    jp.vals_arr
+    jp_vals_arr
   else
-    jp.error "values only works on objects/arrays" || return
+    jp_error "values only works on objects/arrays" || return
   fi
 }
 
-function jp.pairs {
-  jp.pop || return
-  [ "${JP_OUT:0:1}" = '{' ] || jp.error "pairs only works on objects" || return
+jp_pairs () {
+  jp_pop || return
+  [ "${JP_OUT:0:1}" = '{' ] || jp_error "pairs only works on objects" || return
   [ "${#JP_OUT}" -eq 3 ] && return # {\t}
   local flipflop=0 nestcnt=0 accum
   for t in ${JP_OUT:2:-2};do
     if [ $flipflop -eq 0 ];then # key
       accum+="{	$t	:	"
-      (( flipflop++ ))
+      flipflop=$(( flipflop + 1 ))
     elif [ $flipflop -eq 1 ];then # :
-      (( flipflop++ ))
+      flipflop=$(( flipflop + 1 ))
     elif [ $flipflop -eq 2 ];then # val
       accum+="$t	"
-      [[ $t == [\[{] ]] && (( nestcnt++ ))
-      [[ $t == [\]}] ]] && (( nestcnt-- ))
+      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
       if [ $nestcnt -eq 0 ];then
-        (( flipflop++ ))
-        jp.push "$accum}	"
+        flipflop=$(( flipflop + 1 ))
+        jp_push "$accum}	"
         accum=
       fi
     else # ,
@@ -444,12 +453,12 @@ function jp.pairs {
   done
 }
 
-function jp.k {
-  jp.pop || return
+jp_k () {
+  jp_pop || return
   local k=$JP_OUT match= sep= accum=$'[\t'
-  [ "${k:0:1}" == '"' ] || jp.error "k requires a string" || return
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
+  [ "${k:0:1}" = '"' ] || jp_error "k requires a string" || return
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
     if [ "${JP_OUT:0:1}" = '{' ];then
       [ "${#JP_OUT}" -eq 3 ] && continue # {\t}
       local flipflop=0 nestcnt=0
@@ -460,37 +469,37 @@ function jp.k {
           else
             match=0
           fi
-          (( flipflop++ ))
+          flipflop=$(( flipflop + 1 ))
         elif [ $flipflop -eq 1 ];then # :
-          (( flipflop++ ))
+          flipflop=$(( flipflop + 1 ))
         elif [ $flipflop -eq 2 ];then # val
           if [ $match -eq 1 ];then
             [ $nestcnt -gt 0 ] && sep=
             accum+="$sep$t	"
             sep=$',\t'
           fi
-          [[ $t == [\[{] ]] && (( nestcnt++ ))
-          [[ $t == [\]}] ]] && (( nestcnt-- ))
+          [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+          [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
           if [ $nestcnt -eq 0 ];then
-            (( flipflop++ ))
+            flipflop=$(( flipflop + 1 ))
           fi
         else # ,
           flipflop=0
         fi
       done
     else
-      jp.error "only objects have keys" || return
+      jp_error "only objects have keys" || return
     fi
   done
-  jp.push "$accum]	"
+  jp_push "$accum]	"
 }
 
-function jp.i {
-  jp.pop || return
+jp_i () {
+  jp_pop || return
   local i=$JP_OUT accum=$'[\t' sep=
-  [[ "$i" =~ ^[0-9]+$ ]] || jp.error "i requires an integer" || return
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
+  [[ "$i" =~ ^[0-9]+$ ]] || jp_error "i requires an integer" || return
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
     if [ "${JP_OUT:0:1}" = '[' ];then
       [ "${#JP_OUT}" -eq 3 ] && continue # [\t]
       local nestcnt=0 j=0 flipflop=0
@@ -501,97 +510,97 @@ function jp.i {
             accum+="$sep$t	"
             sep=$',\t'
           fi
-          [[ $t == [\[{] ]] && (( nestcnt++ ))
-          [[ $t == [\]}] ]] && (( nestcnt-- ))
-          [ $nestcnt -eq 0 ] && (( flipflop++ ))
+          [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+          [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+          [ $nestcnt -eq 0 ] && flipflop=$(( flipflop + 1 ))
         else # ,
           flipflop=0
-          (( j++ ))
+          j=$(( j + 1 ))
         fi
       done
     else
-      jp.error "i only works on arrays" || return
+      jp_error "i only works on arrays" || return
     fi
   done
-  jp.push "$accum]	"
+  jp_push "$accum]	"
 }
 
-function jp.count {
+jp_count () {
   local count="$JP_STACKSIZE"
   JP_STACK="$count"$'\t\n'
   JP_STACKSIZE=1
 }
 
-function jp.++ {
-  jp.pop || return
+jp_concat () {
+  jp_pop || return
   if [ "${JP_OUT:0:1}" = '"' ];then
-    jp.++_str
+    jp_concat_str
   elif [ "${JP_OUT:0:1}" = '[' ];then
-    jp.++_collection "[" "]"
+    jp_concat_collection "[" "]"
   elif [ "${JP_OUT:0:1}" = '{' ];then
-    jp.++_collection "{" "}"
+    jp_concat_collection "{" "}"
   else
-    jp.error "++ can only concat strings, arrays or objects"
+    jp_error "concat can only concat strings, arrays or objects"
   fi
 }
 
-function jp.++_str {
+jp_concat_str () {
   local str="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
     if [ "${JP_OUT:0:1}" = '"' ];then
       str+="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
     else
-      jp.error "++ was expecting a string but found '${JP_OUT:0:1}'" || return
+      jp_error "concat was expecting a string but found '${JP_OUT:0:1}'" || return
     fi
   done
-  jp.push "\"$str\"	"
+  jp_push "\"$str\"	"
 }
 
-function jp.++_collection {
+jp_concat_collection () {
   local start="$1" end="$2" sep accum="${JP_OUT:0:-1}"
   if [ ${#JP_OUT} -gt 2 ];then
     sep=",	"
   fi
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
     if [ "${JP_OUT:0:1}" = "$start" ];then
       if [ ${#JP_OUT} -gt 2 ];then
         accum+="$sep${JP_OUT:1:-1}"
         sep=",	"
       fi
     else
-      jp.error "++ was expecting a '$start' but found '${JP_OUT:0:1}'" || return
+      jp_error "++ was expecting a '$start' but found '${JP_OUT:0:1}'" || return
     fi
   done
-  [ "${#accum}" -gt 1 ] && jp.push "$accum$end	"
+  [ "${#accum}" -gt 1 ] && jp_push "$accum$end	"
 }
 
-function jp.collect {
+jp_collect () {
   local accum="[	"
   local sep
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
     accum+="$sep$JP_OUT"
     sep=",	"
   done
-  jp.push "$accum]	"
+  jp_push "$accum]	"
 }
 
-function jp._test {
-  local num_op="$1" str_op="$2" sep
-  jp.pop || return
+jp__test () {
+  local op_name="$1" num_op="$2" str_op="$3" sep
+  jp_pop || return
   local operand=$JP_OUT mode
   if [ ${operand[0]:0:1} = '"' ];then
     mode="str"
   elif [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
     mode="num"
   else
-    jp.error "can only compare to strings/numbers but saw '$JP_OUT'" || return
+    jp_error "can only compare to strings/numbers but saw '$JP_OUT'" || return
   fi
   local accum="[	"
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
     if [ "$mode" = 'str' ] && [ ${JP_OUT:0:1} = '"' ];then
       if [ "$JP_OUT" $str_op "$operand" ];then
         accum+="$sep$JP_OUT"
@@ -603,45 +612,45 @@ function jp._test {
         sep=",	"
       fi
     else
-      jp.error "can only filter strings and numbers but saw '$JP_OUT'" || return
+      jp_error "can only filter strings and numbers but saw '$JP_OUT'" || return
     fi
   done
-  jp.push "$accum]	"
+  jp_push "$accum]	"
 }
 
-function jp.eq {
-  jp._test "-eq" "="
+jp_eq () {
+  jp__test "eq" "-eq" "="
 }
 
-function jp.ne {
-  jp._test "-ne" "!="
+jp_ne () {
+  jp__test "ne" "-ne" "!="
 }
 
-function jp.gt {
-  jp._test "-gt" ">"
+jp_gt () {
+  jp__test "gt" "-gt" ">"
 }
 
-function jp.ge {
-  jp._test "-ge" ">"
+jp_ge () {
+  jp__test "ge" "-ge" ">"
 }
 
-function jp.lt {
-  jp._test "-lt" "<"
+jp_lt () {
+  jp__test "lt" "-lt" "<"
 }
 
-function jp.le {
-  jp._test "-le" "<"
+jp_le () {
+  jp__test "le" "-le" "<"
 }
 
-function jp.=~ {
-  jp.pop || return
+jp_match () {
+  jp_pop || return
   if [ ${JP_OUT:0:1} != '"' ];then
-    jp.error "=~ requires a string as a pattern" || return
+    jp_error "match requires a string as a pattern" || return
   fi
   local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" sep accum="[	"
-  while (( JP_STACKSIZE ));do
-    jp.pop || return
-    if [ ${JP_OUT:0:1} == '"' ];then # remove "
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
+    if [ ${JP_OUT:0:1} = '"' ];then # remove "
       if [[ "${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" =~ $operand ]];then
         accum+="$sep$JP_OUT"
         sep=",	"
@@ -652,15 +661,15 @@ function jp.=~ {
         sep=",	"
       fi
     else
-      jp.error "=~ only matches strings and numbers" || return
+      jp_error "match only matches strings and numbers" || return
     fi
   done
-  jp.push "$accum]	"
+  jp_push "$accum]	"
 }
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
-function jp.prettyprint {
+jp_prettyprint () {
   local indentchars="$1"
   local indentlen=${#indentchars}
   local indent=
@@ -700,7 +709,7 @@ function jp.prettyprint {
   [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
 }
 
-function jp.plainprint {
+jp_plainprint () {
   for t in $JP_OUT;do
     echo -nE "$t"
   done
@@ -709,68 +718,81 @@ function jp.plainprint {
 # END PRINT FUNCTIONS
 
 # BEGIN MAIN
-function jp.run {
+jp_run () {
+  JP_STACKSIZE=0
   # parse stdin
   if [ $JP_INPUT ];then
-    jp.parse_json || return
-    jp.push "$JP_TOKENS"
+    jp_parse_json || return
+    jp_push "$JP_TOKENS"
   fi
 
   # process args
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
   for arg in "$@";do
-    if [ ${arg:0:1} = '.' ];then # transformation command
-      eval "jp$arg" || return
-    else # json to parse
-      JP_IDX=0
-      JP_LINE=1
-      JP_BUF="$arg"
-      JP_BUF_MAXLEN="${#JP_BUF}"
-      jp.parse_json || return
-      jp.push "$JP_TOKENS"
-    fi
-  done
+    case "$arg" in
+      [.]*) # transformation command
+            eval "jp_${arg#.}" || return;;
+         *) # json to parse
+            JP_IDX=0
+            JP_LINE=1
+            JP_BUF="$arg"
+            JP_BUF_MAXLEN="${#JP_BUF}"
+            jp_parse_json || return
+            jp_push "$JP_TOKENS";;
+        esac
+      done
   JP_IDX="$in_idx" # restore stdin parse state
   JP_LINE="$in_line"
 
   # print
   [ $JP_SILENT ] && return 0
   while [ $JP_STACKSIZE -gt 0 ];do
-    jp.pop || return
+    jp_pop || return
     if [ $JP_PRETTY ];then
-      jp.prettyprint "$JP_INDENT"
+      jp_prettyprint "$JP_INDENT"
     else
-      jp.plainprint
+      jp_plainprint
     fi
   done
   return 0
 }
 
-function jp.main {
+jp_main () {
   JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
   [ -t 0 ] || JP_INPUT=1  # read input if being piped
-  while getopts ":pPsti:" opt; do
+  while getopts "pPsti:" opt; do
     case "$opt" in
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
-      't') trap '(jp.trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
+      't') trap '(jp_trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
       'i') JP_INDENT="$OPTARG";;
       's') JP_SILENT=1
     esac
     shift $((OPTIND-1))
   done
-  [ $JP_INPUT ] && jp.readline
+  [ $JP_INPUT ] && jp_readline
   while :;do
-    jp.run "$@" || return
+    jp_run "$@" || return
     if [ $JP_INPUT ];then
-      jp.readline && [ $JP_BUF_MAXLEN -eq 0 ] && break # no more input
+      jp_readline && [ $JP_BUF_MAXLEN -eq 0 ] && break # no more input
     else
       break
     fi
   done
   return 0
 }
-[ "$BASH_SOURCE" == "$0" ] && jp.main "$@"
+JP_SOURCED=0
+if [ -n "$ZSH_EVAL_CONTEXT" ]; then 
+  case $ZSH_EVAL_CONTEXT in *:file) JP_SOURCED=1;; esac
+elif [ -n "$KSH_VERSION" ]; then
+  [ "$(cd $(dirname -- $0) && pwd -P)/$(basename -- $0)" != "$(cd $(dirname -- ${.sh.file}) && pwd -P)/$(basename -- ${.sh.file})" ] && JP_SOURCED=1
+elif [ -n "$BASH_VERSION" ]; then
+  (return 0 2>/dev/null) && JP_SOURCED=1 
+else # All other shells: examine $0 for known shell binary filenames
+  # Detects `sh` and `dash`; add additional shell filenames as needed.
+  case ${0##*/} in sh|dash) JP_SOURCED=1;; esac
+fi
+[ $JP_SOURCED -eq 0 ] && jp_main "$@"
 # END MAIN
 # vim: set ft=sh:

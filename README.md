@@ -217,7 +217,7 @@ N.B. errors are emitted on stderr, to silence them, redirect:
 
 Use jp as a library
 -------------------
-jp is a [modulino](https://blog.dnmfarrell.com/post/modulinos-in-bash/). All of its functions and global variables are namespaced under `jp.` or `JP_`. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
+jp is a [modulino](https://blog.dnmfarrell.com/post/modulinos-in-bash/). All of its functions and global variables are namespaced under `jp_` or `JP_`. If jp is sourced, it will not execute the main function, and it can be used as a library by other scripts.
 
 Install
 -------
@@ -234,35 +234,35 @@ Tests are shell scripts which emit [TAP](https://testanything.org/) output. You 
 
 From the root project directory:
 
-    prove $(find tests/ -name '*.bash')
-    tests/parse/string-unicode.bash .. ok
-    tests/parse/array.bash ........... ok
-    tests/parse/null.bash ............ ok
-    tests/parse/halts.bash ........... ok
-    tests/transform/count.bash ....... ok
-    tests/transform/push.bash ........ ok
-    tests/transform/drop.bash ........ ok
-    tests/transform/keys.bash ........ ok
-    tests/transform/pop.bash ......... ok
-    tests/transform/collect.bash ..... ok
-    tests/transform/dup.bash ......... ok
-    tests/transform/k.bash ........... ok
-    tests/transform/i.bash ........... ok
-    tests/transform/pairs.bash ....... ok
-    tests/transform/swap.bash ........ ok
-    tests/transform/vals.bash ........ ok
-    tests/transform/=~.bash .......... ok
-    tests/transform/++.bash .......... ok 
-    tests/transform/test.bash ........ ok 
-    tests/print/plain.bash ........... ok
-    tests/print/indent.bash .......... ok
-    tests/print/pretty.bash .......... ok
-    tests/print/silent.bash .......... ok
+    prove $(find tests -name '*bash')
+    tests/parse/string-unicode.bash ....... ok
+    tests/parse/array.bash ................ ok
+    tests/parse/json-test-suite.bash ...... ok
+    tests/parse/null.bash ................. ok
+    tests/parse/halts.bash ................ ok
+    tests/transform/count.bash ............ ok
+    tests/transform/json-test-suite.bash .. ok
+    tests/transform/match.bash ............ ok
+    tests/transform/push.bash ............. ok
+    tests/transform/drop.bash ............. ok
+    tests/transform/keys.bash ............. ok
+    tests/transform/pop.bash .............. ok
+    tests/transform/collect.bash .......... ok
+    tests/transform/concat.bash ........... ok
+    tests/transform/dup.bash .............. ok
+    tests/transform/k.bash ................ ok
+    tests/transform/i.bash ................ ok
+    tests/transform/pairs.bash ............ ok
+    tests/transform/swap.bash ............. ok
+    tests/transform/vals.bash ............. ok
+    tests/transform/test.bash ............. ok
+    tests/print/plain.bash ................ ok
+    tests/print/indent.bash ............... ok
+    tests/print/pretty.bash ............... ok
+    tests/print/silent.bash ............... ok
     All tests successful.
-    Files=23, Tests=112, 13 wallclock secs ( 0.09 usr  0.03 sys +  6.66 cusr  0.33 csys =  7.11 CPU)
+    Files=25, Tests=457,  6 wallclock secs ( 0.19 usr  0.06 sys +  5.26 cusr  1.53 csys =  7.04 CPU)
     Result: PASS
-
-
 
 Shell Native
 ------------

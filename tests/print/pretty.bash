@@ -3,7 +3,7 @@ source "test-bootstrap.bash"
 IFS=
 
 expect=$'[\n  1,\n  2,\n  3\n]'
-output=$(./jp -pn $expect)
+output=$(./jp -p $expect)
 if [ "$output" = $expect ];then
   pass "-p forces pretty output on non-tty"
 else
