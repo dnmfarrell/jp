@@ -769,8 +769,8 @@ jp_main () {
       'i') JP_INDENT="$OPTARG";;
       's') JP_SILENT=1
     esac
-    shift $((OPTIND-1))
   done
+  shift $((OPTIND-1)) # reset options processing
   [ $JP_INPUT ] && jp_readline
   while :;do
     jp_run "$@" || return
