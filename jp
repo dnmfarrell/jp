@@ -677,6 +677,17 @@ jp_if () {
     jp_error "if requires a bool" || return
   fi
 }
+
+jp_not () {
+  jp_pop || return
+  if [ ${JP_OUT:0:1} = 't' ];then
+    jp_push 'false	'
+  elif [ ${JP_OUT:0:1} = 'f' ];then
+    jp_push 'true	'
+  else
+    jp_error "not requires a bool" || return
+  fi
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
