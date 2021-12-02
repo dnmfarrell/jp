@@ -666,6 +666,17 @@ jp_match () {
   done
   jp_push "$accum]	"
 }
+
+jp_if () {
+  jp_pop || return
+  if [ ${JP_OUT:0:1} = 't' ];then
+    JP_SKIP_NEXT=
+  elif [ ${JP_OUT:0:1} = 'f' ];then
+    JP_SKIP_NEXT=1
+  else
+    jp_error "if requires a bool" || return
+  fi
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
@@ -729,6 +740,10 @@ jp_run () {
   # process args
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
   for arg in "$@";do
+    if [ $JP_SKIP_NEXT ];then
+      JP_SKIP_NEXT=
+      continue
+    fi
     case "$arg" in
       [.]*) # transformation command
             eval "jp_${arg#.}" || return;;
