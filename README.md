@@ -66,13 +66,13 @@ Copies the value on the top of the stack making it the top two items.
     "Hello"
     "Hello"
 
-### .++
+### .concat
 Concatenate strings, arrays or objects on the stack into one value.
 
-    jp '" World!"' '"Hello,"' .++
+    jp '" World!"' '"Hello,"' .concat
     "Hello, World!"
 
-    jp '["JavaScript","PHP","Perl"]' '["Python"]' .++
+    jp '["JavaScript","PHP","Perl"]' '["Python"]' .concat
     [
       "Python",
       "JavaScript",
@@ -80,7 +80,7 @@ Concatenate strings, arrays or objects on the stack into one value.
       "Perl"
     ]
 
-    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' '{"job":"villain"}' .++
+    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' '{"job":"villain"}' .concat
     {
       "job": "villain",
       "name": "Lex Luthor",
@@ -161,10 +161,10 @@ Filter strings/numbers. Pops the first value off the stack to use as an operand,
 
 N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons. For `.le` string comparisons, jp uses `<`, and `>` for `.ge'.
 
-### .=~
+### .match
 Match a string extended posix pattern against other strings or numbers.
 
-    jp '"5"' 123 5.0 -1 '"foo"' '"^[0-9]+$"' .=~
+    jp '"5"' 123 5.0 -1 '"foo"' '"^[0-9]+$"' .match
     [
       123,
       "5"
