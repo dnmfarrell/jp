@@ -603,12 +603,12 @@ jp__test () {
     jp_pop || return
     if [ "$mode" = 'str' ] && [ ${JP_OUT:0:1} = '"' ];then
       if [ "$JP_OUT" $str_op "$operand" ];then
-        accum+="$sep$JP_OUT"
+        accum+="$sep$JP_OUT	"
         sep=",	"
       fi
     elif [ "$mode" = 'num' ] && [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
       if [ $JP_OUT $num_op $operand ];then
-        accum+="$sep$JP_OUT"
+        accum+="$sep$JP_OUT	"
         sep=",	"
       fi
     else
