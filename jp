@@ -351,6 +351,45 @@ jp_swap () {
   jp_push "$JP_OUT	"
 }
 
+jp_uniq () {
+  jp_pop || return
+  if [ "${JP_OUT:0:1}" = '{' ];then
+    if [ "${#JP_OUT}" -eq 3 ];then
+      jp_push "$JP_OUT	"
+      return
+    fi
+    local flipflop=0 nestcnt=0 keys="" skip= rv="{	" sep=
+    for t in ${JP_OUT:2:-2};do
+      if [ $flipflop -eq 0 ];then # key
+        if [[ "$keys" =~ "$t" ]];then
+          skip=1
+        else
+          keys+="$t"
+          rv+="$sep$t	"
+          sep=",	"
+        fi
+        flipflop=$(( flipflop + 1 ))
+      elif [ $flipflop -eq 1 ];then # :
+        flipflop=$(( flipflop + 1 ))
+        [ $skip ] || rv+="$t	"
+      elif [ $flipflop -eq 2 ];then # val
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+        if [ $nestcnt -eq 0 ];then
+          flipflop=$(( flipflop + 1 ))
+        fi
+        [ $skip ] || rv+="$t	"
+      else # ,
+        flipflop=0
+        skip=
+      fi
+    done
+    jp_push "$rv}	"
+  else
+    jp_error "uniq only works on objects" || return
+  fi
+}
+
 jp_keys () {
   jp_pop || return
   if [ "${JP_OUT:0:1}" = '{' ];then
