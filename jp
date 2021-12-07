@@ -766,6 +766,47 @@ jp_not () {
     jp_error "not requires a bool" || return
   fi
 }
+
+jp__is_bool() {
+  [ ${JP_OUT:0:1} = 't' ] || [ ${JP_OUT:0:1} = 'f' ]
+}
+
+jp_or () {
+  jp_pop || return
+  if jp__is_bool;then
+    local left="$JP_OUT"
+    jp_pop || return
+    if jp__is_bool;then
+      local right="$JP_OUT"
+      if [ "$left" = "$right" ];then
+        jp_push "$left	"
+      else
+        jp_push "true	"
+      fi
+      return
+    fi
+  fi
+  jp_error "or requires two bools" || return
+}
+
+jp_and () {
+  jp_pop || return
+  if jp__is_bool;then
+    local left="$JP_OUT"
+    jp_pop || return
+    if jp__is_bool;then
+      local right="$JP_OUT"
+      if [ "$left" = "$right" ];then
+        jp_push "$left	"
+      else
+        jp_push "false	"
+      fi
+      return
+    fi
+  fi
+  jp_error "and requires two bools" || return
+}
+
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
