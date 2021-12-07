@@ -873,16 +873,7 @@ jp_main () {
   return 0
 }
 JP_SOURCED=0
-if [ -n "$ZSH_EVAL_CONTEXT" ]; then 
-  case $ZSH_EVAL_CONTEXT in *:file) JP_SOURCED=1;; esac
-elif [ -n "$KSH_VERSION" ]; then
-  [ "$(cd $(dirname -- $0) && pwd -P)/$(basename -- $0)" != "$(cd $(dirname -- ${.sh.file}) && pwd -P)/$(basename -- ${.sh.file})" ] && JP_SOURCED=1
-elif [ -n "$BASH_VERSION" ]; then
-  (return 0 2>/dev/null) && JP_SOURCED=1 
-else # All other shells: examine $0 for known shell binary filenames
-  # Detects `sh` and `dash`; add additional shell filenames as needed.
-  case ${0##*/} in sh|dash) JP_SOURCED=1;; esac
-fi
+[ $0 != "$BASH_SOURCE" ] && JP_SOURCED=1
 [ $JP_SOURCED -eq 0 ] && jp_main "$@"
 # END MAIN
 # vim: set ft=sh:
