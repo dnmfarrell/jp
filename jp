@@ -429,82 +429,6 @@ jp_uniq () {
   fi
 }
 
-jp_keys () {
-  jp_pop || return
-  if [ "${JP_OUT:0:1}" = '{' ];then
-    [ "${#JP_OUT}" -eq 3 ] && return # {\t}
-    local flipflop=0 nestcnt=0
-    for t in ${JP_OUT:2:-2};do
-      if [ $flipflop -eq 0 ];then # key
-        jp_push "$t	"
-        flipflop=$(( flipflop + 1 ))
-      elif [ $flipflop -eq 1 ];then # :
-        flipflop=$(( flipflop + 1 ))
-      elif [ $flipflop -eq 2 ];then # val
-        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-        if [ $nestcnt -eq 0 ];then
-          flipflop=$(( flipflop + 1 ))
-        fi
-      else # ,
-        flipflop=0
-      fi
-    done
-  else
-    jp_error "keys only works on objects" || return
-  fi
-}
-
-jp_vals_obj () {
-  [ "${#JP_OUT}" -eq 3 ] && return # {\t}
-  local flipflop=0 nestcnt=0 accum
-  for t in ${JP_OUT:2:-2};do
-    if [ $flipflop -eq 0 ];then # key
-      flipflop=$(( flipflop + 1 ))
-    elif [ $flipflop -eq 1 ];then # :
-      flipflop=$(( flipflop + 1 ))
-    elif [ $flipflop -eq 2 ];then # val
-      accum+="$t	"
-      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-      if [ $nestcnt -eq 0 ];then
-        flipflop=$(( flipflop + 1 ))
-        jp_push "$accum"
-        accum=
-      fi
-    else # ,
-      flipflop=0
-    fi
-  done
-}
-
-jp_vals_arr () {
-  [ "${#JP_OUT}" -eq 3 ] && return # [\t]
-  local nestcnt=0 accum
-  for t in ${JP_OUT:2:-2};do
-    if [ $nestcnt -gt 0 ] || [ "$t" != ',' ];then
-      accum+="$t	"
-      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-      if [ $nestcnt -eq 0 ];then
-        jp_push "$accum"
-        accum=
-      fi
-    fi
-  done
-}
-
-jp_vals () {
-  jp_pop || return
-  if [ "${JP_OUT:0:1}" = '{' ];then
-    jp_vals_obj
-  elif [ "${JP_OUT:0:1}" = '[' ];then
-    jp_vals_arr
-  else
-    jp_error "values only works on objects/arrays" || return
-  fi
-}
-
 jp_k () {
   jp_pop || return
   if [ "${JP_OUT:0:1}" = '{' ];then
@@ -692,12 +616,89 @@ jp_match () {
 
 jp_if () {
   jp_pop || return
-  if [ ${JP_OUT:0:1} = 't' ];then
-    JP_SKIP_NEXT=
-  elif [ ${JP_OUT:0:1} = 'f' ];then
-    JP_SKIP_NEXT=1
+  if jp__is_bool;then
+    if [ ${JP_OUT:0:1} = 'f' ];then
+      jp_next_arg
+      if [ "$JP_ARG" = '.do' ];then
+        local last_skip=$JP_SKIP
+        JP_SKIP=1
+        jp_eval "$JP_ARG" || return
+        JP_SKIP=$last_skip
+      fi
+    fi
   else
     jp_error "if requires a bool" || return
+  fi
+}
+
+jp_do () {
+  jp_next_arg || return
+  while [ "$JP_ARG" != ".done" ];do
+    [ $JP_SKIP ] || jp_eval "$JP_ARG" || return
+    jp_next_arg || return
+  done
+}
+
+jp__is_object () {
+  [ "${JP_OUT:0:1}" = '{' ]
+}
+
+jp__is_array () {
+  [ "${JP_OUT:0:1}" = '[' ]
+}
+
+jp_map () {
+  jp_pop || return
+  if jp__is_object;then
+    if [ "${#JP_OUT}" -eq 3 ]; then # skip next expression
+      jp_push "false	"
+      jp_if
+    fi
+    local obj="$JP_OUT" flipflop=0 nestcnt=0 args_idx=$JP_ARGS_IDX accum
+    for t in ${obj:2:-2};do
+      if [ $flipflop -eq 0 ];then # key
+        accum="{	$t	:	"
+        flipflop=$(( flipflop + 1 ))
+      elif [ $flipflop -eq 1 ];then # :
+        flipflop=$(( flipflop + 1 ))
+      elif [ $flipflop -eq 2 ];then # val
+        accum+="$t	"
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+        if [ $nestcnt -eq 0 ];then
+          flipflop=$(( flipflop + 1 ))
+          jp_push "$accum}	"
+          accum=
+          JP_ARGS_IDX=$args_idx
+          jp_next_arg || return
+          jp_eval "$JP_ARG" || return
+        fi
+      else # ,
+        flipflop=0
+      fi
+    done
+  elif jp__is_array;then
+    if [ "${#JP_OUT}" -eq 3 ]; then # skip next expression
+      jp_push "false	"
+      jp_if
+    fi
+    local nestcnt=0 args_idx=$JP_ARGS_IDX
+    for t in ${JP_OUT:2:-2};do
+      if [ $nestcnt -gt 0 ] || [ "$t" != ',' ];then
+        accum+="$t	"
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+        if [ $nestcnt -eq 0 ];then
+          jp_push "$accum"
+          accum=
+          JP_ARGS_IDX=$args_idx
+          jp_next_arg || return
+          jp_eval "$JP_ARG" || return
+        fi
+      fi
+    done
+  else
+    jp_error "can only map objects or arrays" || return
   fi
 }
 
@@ -805,15 +806,13 @@ jp_plainprint () {
 
 # BEGIN MAIN
 jp_next_arg () {
+  (( JP_ARGS_IDX < JP_ARGS_LEN )) || jp_error "ran out of args" || return
   JP_ARG="${JP_ARGS[$((JP_ARGS_IDX))]}"
   (( JP_ARGS_IDX++ ))
+  return 0
 }
 
 jp_eval () {
-  if [ $JP_SKIP_NEXT ];then
-    JP_SKIP_NEXT=
-    return
-  fi
   case "$1" in
     [.]*) # transformation command
           eval "jp_${1#.}" || return;;
@@ -838,7 +837,7 @@ jp_run () {
   # transform
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
   while (( JP_ARGS_IDX < JP_ARGS_LEN ));do
-    jp_next_arg
+    jp_next_arg || return
     jp_eval "$JP_ARG" || return
   done
   JP_IDX="$in_idx" # restore stdin parse state
