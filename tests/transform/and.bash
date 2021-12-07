@@ -61,3 +61,5 @@ else
   printf -v ffesc "%q" "$ff"
   fail "and false false returns: $ffesc"
 fi
+
+end

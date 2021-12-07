@@ -31,3 +31,5 @@ else
   printf -v fesc "%q" "$f"
   fail "false if 1 returns: $fesc"
 fi
+
+end
