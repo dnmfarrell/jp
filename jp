@@ -533,43 +533,44 @@ jp_pairs () {
 
 jp_k () {
   jp_pop || return
-  local k=$JP_OUT match= sep= accum=$'[\t'
-  [ "${k:0:1}" = '"' ] || jp_error "k requires a string" || return
-  while [ $JP_STACKSIZE -gt 0 ];do
-    jp_pop || return
-    if [ "${JP_OUT:0:1}" = '{' ];then
-      [ "${#JP_OUT}" -eq 3 ] && continue # {\t}
-      local flipflop=0 nestcnt=0
-      for t in ${JP_OUT:2:-2};do
-        if [ $flipflop -eq 0 ];then # key
-          if [ "$k" = "$t" ];then
-            match=1
-          else
-            match=0
-          fi
-          flipflop=$(( flipflop + 1 ))
-        elif [ $flipflop -eq 1 ];then # :
-          flipflop=$(( flipflop + 1 ))
-        elif [ $flipflop -eq 2 ];then # val
-          if [ $match -eq 1 ];then
-            [ $nestcnt -gt 0 ] && sep=
-            accum+="$sep$t	"
-            sep=$',\t'
-          fi
-          [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-          [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-          if [ $nestcnt -eq 0 ];then
-            flipflop=$(( flipflop + 1 ))
-          fi
-        else # ,
-          flipflop=0
-        fi
-      done
-    else
-      jp_error "only objects have keys" || return
+  if [ "${JP_OUT:0:1}" = '{' ];then
+    if [ "${#JP_OUT}" -eq 3 ];then
+      jp_error "k doesn't work on an empty object" || return
     fi
-  done
-  jp_push "$accum]	"
+    for t in ${JP_OUT:2:-2};do
+      jp_push "$t	"
+      break
+    done
+  else
+    jp_error "k only works on objects" || return
+  fi
+}
+
+jp_v () {
+  jp_pop || return
+  if [ "${JP_OUT:0:1}" = '{' ];then
+    if [ "${#JP_OUT}" -eq 3 ];then
+      jp_error "v doesn't work on an empty object" || return
+    fi
+    local flipflop=0 nestcnt=0 rv=
+    for t in ${JP_OUT:2:-2};do
+      if [ $flipflop -eq 0 ];then # key
+        flipflop=$(( flipflop + 1 ))
+      elif [ $flipflop -eq 1 ];then # :
+        flipflop=$(( flipflop + 1 ))
+      else #v
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+        rv+="$t	"
+        if [ $nestcnt -eq 0 ];then
+          jp_push "$rv"
+          return
+        fi
+      fi
+    done
+  else
+    jp_error "v only works on objects" || return
+  fi
 }
 
 jp_i () {
