@@ -505,32 +505,6 @@ jp_vals () {
   fi
 }
 
-jp_pairs () {
-  jp_pop || return
-  [ "${JP_OUT:0:1}" = '{' ] || jp_error "pairs only works on objects" || return
-  [ "${#JP_OUT}" -eq 3 ] && return # {\t}
-  local flipflop=0 nestcnt=0 accum
-  for t in ${JP_OUT:2:-2};do
-    if [ $flipflop -eq 0 ];then # key
-      accum+="{	$t	:	"
-      flipflop=$(( flipflop + 1 ))
-    elif [ $flipflop -eq 1 ];then # :
-      flipflop=$(( flipflop + 1 ))
-    elif [ $flipflop -eq 2 ];then # val
-      accum+="$t	"
-      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-      if [ $nestcnt -eq 0 ];then
-        flipflop=$(( flipflop + 1 ))
-        jp_push "$accum}	"
-        accum=
-      fi
-    else # ,
-      flipflop=0
-    fi
-  done
-}
-
 jp_k () {
   jp_pop || return
   if [ "${JP_OUT:0:1}" = '{' ];then
@@ -571,43 +545,6 @@ jp_v () {
   else
     jp_error "v only works on objects" || return
   fi
-}
-
-jp_i () {
-  jp_pop || return
-  local i=$JP_OUT accum=$'[\t' sep=
-  [[ "$i" =~ ^[0-9]+$ ]] || jp_error "i requires an integer" || return
-  while [ $JP_STACKSIZE -gt 0 ];do
-    jp_pop || return
-    if [ "${JP_OUT:0:1}" = '[' ];then
-      [ "${#JP_OUT}" -eq 3 ] && continue # [\t]
-      local nestcnt=0 j=0 flipflop=0
-      for t in ${JP_OUT:2:-2};do
-        if [ $flipflop -eq 0 ];then # val
-          if [ $j -eq $i ];then
-            [ $nestcnt -gt 0 ] && sep=
-            accum+="$sep$t	"
-            sep=$',\t'
-          fi
-          [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-          [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-          [ $nestcnt -eq 0 ] && flipflop=$(( flipflop + 1 ))
-        else # ,
-          flipflop=0
-          j=$(( j + 1 ))
-        fi
-      done
-    else
-      jp_error "i only works on arrays" || return
-    fi
-  done
-  jp_push "$accum]	"
-}
-
-jp_count () {
-  local count="$JP_STACKSIZE"
-  JP_STACK="$count"$'\t\n'
-  JP_STACKSIZE=1
 }
 
 jp_concat () {
