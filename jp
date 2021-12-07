@@ -351,6 +351,45 @@ jp_swap () {
   jp_push "$JP_OUT	"
 }
 
+jp_exists () {
+  jp_pop || return
+  local k=$JP_OUT
+  [ "${k:0:1}" = '"' ] || jp_error "exists requires a string but saw '$JP_OUT'" || return
+  jp_pop || return
+  if [ "${JP_OUT:0:1}" = '{' ];then
+    if [ "${#JP_OUT}" -eq 3 ];then
+      jp_push "$JP_OUT	"
+      jp_push "false	"
+      return
+    fi
+    local flipflop=0 nestcnt=0
+    for t in ${JP_OUT:2:-2};do
+      if [ $flipflop -eq 0 ];then # key
+        if [ "$k" = "$t" ];then
+          jp_push "$JP_OUT	"
+          jp_push "true	"
+          return
+        fi
+        flipflop=$(( flipflop + 1 ))
+      elif [ $flipflop -eq 1 ];then # :
+        flipflop=$(( flipflop + 1 ))
+      elif [ $flipflop -eq 2 ];then # val
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+        if [ $nestcnt -eq 0 ];then
+          flipflop=$(( flipflop + 1 ))
+        fi
+      else # ,
+        flipflop=0
+      fi
+    done
+    jp_push "$JP_OUT	"
+    jp_push "false	"
+  else
+    jp_error "exists looks up a key on objects, but saw '$JP_OUT'" || return
+  fi
+}
+
 jp_uniq () {
   jp_pop || return
   if [ "${JP_OUT:0:1}" = '{' ];then
