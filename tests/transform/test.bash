@@ -2,21 +2,28 @@
 source "test-bootstrap.bash"
 IFS=
 
-$(echo 1 | ./jp .pop .eq 2>/dev/null)
+$(./jp .eq 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "test empty stack errors"
 else
   fail "test empty stack does not error"
 fi
 
-$(echo null | ./jp .eq 2>/dev/null)
+$(./jp 1 .eq 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "test missing right operand errors"
+else
+  fail "test missing right operand does not error"
+fi
+
+$(./jp null null .eq 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "test illegal operand type errors"
 else
   fail "test illegal operand type does not error"
 fi
 
-$(echo 1 | ./jp "f" .eq 2>/dev/null)
+$(./jp 1 '"f"' .eq 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "test mismatched types errors"
 else
@@ -30,52 +37,43 @@ else
   fail "test mismatched types does not error"
 fi
 
-nothing=$(echo 1 | ./jp .eq)
-if [ "$nothing" = '[]' ];then
-  pass "test one stack returns []"
+$(./jp '"f"' '"f"' .ge 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "test invalid string op errors"
 else
-  printf -v nothingesc "%q" "$nothing"
-  fail "test one stack returns: $nothingesc"
+  fail "test invalid string op does not error"
 fi
 
-none=$(echo 1 | ./jp 2 3 5 .gt)
-if [ "$none" = '[]' ];then
-  pass "test no true cases returns []"
+strmatch=$(./jp '"f"' '"f"' .eq)
+if [ "$strmatch" = 'true' ];then
+  pass "test matching strings returns true"
 else
-  printf -v noneesc "%q" "$none"
-  fail "test no true cases returns: $noneesc"
+  printf -v strmatchesc "%q" "$strmatch"
+  fail "test matching strings returns: $strmatchesc"
 fi
 
-one=$(echo 1 | ./jp 2 3 1 .eq)
-if [ "$one" = '[1]' ];then
-  pass "test one true case"
+strdiff=$(./jp '"f"' '"a"' .eq)
+if [ "$strdiff" = 'false' ];then
+  pass "test different strings returns false"
 else
-  printf -v oneesc "%q" "$one"
-  fail "test one true case returns: $oneesc"
+  printf -v strdiffesc "%q" "$strdiff"
+  fail "test different strings returns: $strdiffesc"
 fi
 
-onestr=$(./jp '" a b c "' '" a b c "' .eq)
-if [ "$onestr" = '[" a b c "]' ];then
-  pass "test onestr true case"
+intmatch=$(./jp 17 17 .eq)
+if [ "$intmatch" = 'true' ];then
+  pass "test matching ints returns true"
 else
-  printf -v onestresc "%q" "$onestr"
-  fail "test onestr true case returns: $onestresc"
+  printf -v intmatchesc "%q" "$intmatch"
+  fail "test matching ints returns: $intmatchesc"
 fi
 
-three=$(echo 1 | ./jp 2 3 1 .ge)
-if [ "$three" = '[3,2,1]' ];then
-  pass "test three true cases"
+intdiff=$(./jp 5 43 .eq)
+if [ "$intdiff" = 'false' ];then
+  pass "test different ints returns false"
 else
-  printf -v threeesc "%q" "$three"
-  fail "test three true cases returns: $threeesc"
-fi
-
-emptystr=$(echo '""' | ./jp '""' .eq)
-if [ "$emptystr" = '[""]' ];then
-  pass "test emptystr case"
-else
-  printf -v emptystresc "%q" "$emptystr"
-  fail "test emptystr case returns: $emptystresc"
+  printf -v intdiffesc "%q" "$intdiff"
+  fail "test different ints returns: $intdiffesc"
 fi
 
 end

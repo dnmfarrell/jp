@@ -667,34 +667,42 @@ jp_collect () {
 }
 
 jp__test () {
-  local op_name="$1" num_op="$2" str_op="$3" sep
+  local op_name="$1" num_op="$2" str_op="$3" left=
   jp_pop || return
-  local operand=$JP_OUT mode
-  if [ ${operand[0]:0:1} = '"' ];then
-    mode="str"
-  elif [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
-    mode="num"
-  else
-    jp_error "can only compare to strings/numbers but saw '$JP_OUT'" || return
-  fi
-  local accum="[	"
-  while [ $JP_STACKSIZE -gt 0 ];do
+  if jp__is_str;then
+    left="$JP_OUT"
     jp_pop || return
-    if [ "$mode" = 'str' ] && [ ${JP_OUT:0:1} = '"' ];then
-      if [ "$JP_OUT" $str_op "$operand" ];then
-        accum+="$sep$JP_OUT	"
-        sep=",	"
+    if [ -z $str_op ];then
+      jp_error "$op_name does not work on strings" || return
+    elif jp__is_str;then
+      if [ "$left" $str_op "$JP_OUT" ];then
+        jp_push "true	"
+      else
+        jp_push "false	"
       fi
-    elif [ "$mode" = 'num' ] && [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
-      if [ $JP_OUT $num_op $operand ];then
-        accum+="$sep$JP_OUT	"
-        sep=",	"
-      fi
-    else
-      jp_error "can only filter strings and numbers but saw '$JP_OUT'" || return
+      return
     fi
-  done
-  jp_push "$accum]	"
+  elif jp__is_int;then
+    left="$JP_OUT"
+    jp_pop || return
+    if jp__is_int;then
+      if [ $left $num_op $JP_OUT ];then
+        jp_push "true	"
+      else
+        jp_push "false	"
+      fi
+      return
+    fi
+  fi
+  jp_error "$op_name only works on pairs of strings or integers" || return
+}
+
+jp__is_int() {
+  [[ ${JP_OUT:0:1} == [[:digit:]-] ]]
+}
+
+jp__is_str() {
+  [ ${JP_OUT:0:1} = '"' ]
 }
 
 jp_eq () {
@@ -710,7 +718,7 @@ jp_gt () {
 }
 
 jp_ge () {
-  jp__test "ge" "-ge" ">"
+  jp__test "ge" "-ge" ""
 }
 
 jp_lt () {
@@ -718,7 +726,7 @@ jp_lt () {
 }
 
 jp_le () {
-  jp__test "le" "-le" "<"
+  jp__test "le" "-le" ""
 }
 
 jp_match () {
@@ -726,24 +734,23 @@ jp_match () {
   if [ ${JP_OUT:0:1} != '"' ];then
     jp_error "match requires a string as a pattern" || return
   fi
-  local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" sep accum="[	"
-  while [ $JP_STACKSIZE -gt 0 ];do
-    jp_pop || return
-    if [ ${JP_OUT:0:1} = '"' ];then # remove "
-      if [[ "${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" =~ $operand ]];then
-        accum+="$sep$JP_OUT"
-        sep=",	"
-      fi
-    elif [[ ${JP_OUT:0:1} == [[:digit:]-] ]];then
-      if [[ $JP_OUT =~ $operand ]];then
-        accum+="$sep$JP_OUT"
-        sep=",	"
-      fi
+  local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}"
+  jp_pop || return
+  if jp__is_str;then # remove "
+    if [[ "${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" =~ $operand ]];then
+      jp_push "true	"
     else
-      jp_error "match only matches strings and numbers" || return
+      jp_push "false	"
     fi
-  done
-  jp_push "$accum]	"
+  elif jp__is_int;then
+    if [[ $JP_OUT =~ $operand ]];then
+      jp_push "true	"
+    else
+      jp_push "false	"
+    fi
+  else
+    jp_error "match only matches strings and ints" || return
+  fi
 }
 
 jp_if () {

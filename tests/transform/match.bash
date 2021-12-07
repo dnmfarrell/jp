@@ -9,6 +9,13 @@ else
   fail "match empty stack does not error"
 fi
 
+$(./jp '"*"' .match 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "match missing right operand errors"
+else
+  fail "match missing right operand does not error"
+fi
+
 $(./jp null .match 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "match illegal operand type errors"
@@ -23,52 +30,36 @@ else
   fail "match illegal type does not error"
 fi
 
-nothing=$(./jp '"1"' .match)
-if [ "$nothing" = '[]' ];then
-  pass "match one stack returns []"
+strmatch=$(./jp '"f"' '"[a-z]"' .match)
+if [ "$strmatch" = 'true' ];then
+  pass "match f [a-z] returns true"
 else
-  printf -v nothingesc "%q" "$nothing"
-  fail "match one stack returns: $nothingesc"
+  printf -v strmatchesc "%q" "$strmatch"
+  fail "match f [a-z] returns: $strmatchesc"
 fi
 
-none=$(./jp 1 2 3 5 '"a"' .match)
-if [ "$none" = '[]' ];then
-  pass "match no true cases returns []"
+strdiff=$(./jp '""' '"[A-Z]"' .match)
+if [ "$strdiff" = 'false' ];then
+  pass "match '' [A-Z] returns false"
 else
-  printf -v noneesc "%q" "$none"
-  fail "match no true cases returns: $noneesc"
+  printf -v strdiffesc "%q" "$strdiff"
+  fail "match '' [A-Z] returns: $strdiffesc"
 fi
 
-one=$(./jp 1 2 3 5 '"3"' .match)
-if [ "$one" = '[3]' ];then
-  pass "match one item"
+intmatch=$(./jp 17 '"[0-9]+"' .match)
+if [ "$intmatch" = 'true' ];then
+  pass "match 17 [0-9]+ returns true"
 else
-  printf -v oneesc "%q" "$one"
-  fail "match one item returns: $oneesc"
+  printf -v intmatchesc "%q" "$intmatch"
+  fail "match 17 [0-9]+ returns: $intmatchesc"
 fi
 
-strnum=$(./jp 1 '"ded mau5"' '"[0-9]$"' .match)
-if [ "$strnum" = '["ded mau5",1]' ];then
-  pass "match str and num"
+intdiff=$(./jp 5 '"[a-z]"' .match)
+if [ "$intdiff" = 'false' ];then
+  pass "match 5 [a-z] returns false"
 else
-  printf -v strnumesc "%q" "$strnum"
-  fail "match str and num: $strnumesc"
-fi
-
-multi=$(./jp '"anon"' '"a bar"' '"a fish"' '"^a "' .match)
-if [ "$multi" = '["a fish","a bar"]' ];then
-  pass "match multi item"
-else
-  printf -v multiesc "%q" "$multi"
-  fail "match multi item returns: $multiesc"
-fi
-
-emptystr=$(./jp '""' '" bar"' '"a "' '"^$"' .match)
-if [ "$emptystr" = '[""]' ];then
-  pass "match emptystr item"
-else
-  printf -v emptystresc "%q" "$emptystr"
-  fail "match emptystr item returns: $emptystresc"
+  printf -v intdiffesc "%q" "$intdiff"
+  fail "match 5 [a-z] returns: $intdiffesc"
 fi
 
 end
