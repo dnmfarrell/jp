@@ -597,7 +597,7 @@ jp_collect () {
   local sep
   while [ $JP_STACKSIZE -gt 0 ];do
     jp_pop || return
-    accum+="$sep$JP_OUT"
+    accum+="$sep$JP_OUT	"
     sep=",	"
   done
   jp_push "$accum]	"
