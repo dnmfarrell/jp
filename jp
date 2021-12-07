@@ -634,11 +634,11 @@ jp__test () {
   jp_error "$op_name only works on pairs of strings or integers" || return
 }
 
-jp__is_int() {
+jp__is_int () {
   [[ ${JP_OUT:0:1} == [[:digit:]-] ]]
 }
 
-jp__is_str() {
+jp__is_str () {
   [ ${JP_OUT:0:1} = '"' ]
 }
 
@@ -712,7 +712,7 @@ jp_not () {
   fi
 }
 
-jp__is_bool() {
+jp__is_bool () {
   [ ${JP_OUT:0:1} = 't' ] || [ ${JP_OUT:0:1} = 'f' ]
 }
 
@@ -804,33 +804,43 @@ jp_plainprint () {
 # END PRINT FUNCTIONS
 
 # BEGIN MAIN
+jp_next_arg () {
+  JP_ARG="${JP_ARGS[$((JP_ARGS_IDX))]}"
+  (( JP_ARGS_IDX++ ))
+}
+
+jp_eval () {
+  if [ $JP_SKIP_NEXT ];then
+    JP_SKIP_NEXT=
+    return
+  fi
+  case "$1" in
+    [.]*) # transformation command
+          eval "jp_${1#.}" || return;;
+       *) # json to parse
+          JP_IDX=0
+          JP_LINE=1
+          JP_BUF="$1"
+          JP_BUF_MAXLEN="${#JP_BUF}"
+          jp_parse_json || return
+          jp_push "$JP_TOKENS";;
+  esac
+}
+
 jp_run () {
   JP_STACKSIZE=0
-  # parse stdin
+  # parse
   if [ $JP_INPUT ];then
     jp_parse_json || return
     jp_push "$JP_TOKENS"
   fi
 
-  # process args
+  # transform
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
-  for arg in "$@";do
-    if [ $JP_SKIP_NEXT ];then
-      JP_SKIP_NEXT=
-      continue
-    fi
-    case "$arg" in
-      [.]*) # transformation command
-            eval "jp_${arg#.}" || return;;
-         *) # json to parse
-            JP_IDX=0
-            JP_LINE=1
-            JP_BUF="$arg"
-            JP_BUF_MAXLEN="${#JP_BUF}"
-            jp_parse_json || return
-            jp_push "$JP_TOKENS";;
-        esac
-      done
+  while (( JP_ARGS_IDX < JP_ARGS_LEN ));do
+    jp_next_arg
+    jp_eval "$JP_ARG" || return
+  done
   JP_IDX="$in_idx" # restore stdin parse state
   JP_LINE="$in_line"
 
@@ -863,7 +873,10 @@ jp_main () {
   shift $((OPTIND-1)) # reset options processing
   [ $JP_INPUT ] && jp_readline
   while :;do
-    jp_run "$@" || return
+    JP_ARGS=("$@")
+    JP_ARGS_LEN=${#JP_ARGS[@]}
+    JP_ARGS_IDX=0
+    jp_run || return
     if [ $JP_INPUT ];then
       jp_readline && [ $JP_BUF_MAXLEN -eq 0 ] && break # no more input
     else
