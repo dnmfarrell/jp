@@ -9,6 +9,13 @@ else
   fail "unterminated do does not error"
 fi
 
+$(./jp .done 2>/dev/null)
+if [ $? -ne 0 ];then
+  pass "naked done errors"
+else
+  fail "naked done does not error"
+fi
+
 $(./jp .do .do .done 2>/dev/null)
 if [ $? -eq 1 ];then
   pass "unterminated nested do errors"

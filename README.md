@@ -87,29 +87,37 @@ Rotates the third stack item into first place.
 ### Control Flow
 
 #### .do ... .done
-Declares a block of code as a single expression. Do blocks are accepted by `.if` and `.map`, and can be nested.
+Declares a block of code as a single statement. Do blocks are accepted by `.if` and `.map`, and can be nested.
 
     jp .do 1 2 3 .done
     3
     2
     1
 
-Empty do blocks can be used as "no ops", like when you want to reverse an object:
+Empty do blocks can be used as a "no op" with `.map` to unroll an object or array:
 
-    jp -P [1,2,3] .map .do .done .collect
-    [3,2,1]
+    jp [1,2,3] .map .do .done
+    3
+    2
+    1
 
-#### .if
-Pops the top stack item and if it is true, evaluates the next expression, otherwise ignoring it.
+    jp -P '{"name":"Lex Luthor","email":"lex@example.com","job":"villain"}' .map .do .done
+    {"job":"villain"}
+    {"email":"lex@example.com"}
+    {"name":"Lex Luthor"}
+
+
+#### .if [.else]
+Pops the top stack item and if it is true, evaluates the next statement, otherwise ignoring it. Optionally accepts an else clause.
 
     jp true .if 1
     1
 
-    jp false .if .do 1 2 3 .done
-    # no output
+    jp false .if .do 1 2 3 .done .else 4
+    4
 
 #### .map
-Pops an object/array off the stack and pushes each element onto the stack, evaluating the next expression every iteration.
+Pops an object/array off the stack and pushes each element onto the stack, evaluating the next statement every iteration.
 
     jp [1,2,3] .map .do 3 .le .done
     true
@@ -118,12 +126,11 @@ Pops an object/array off the stack and pushes each element onto the stack, evalu
 
 Map is powerful. For example, here's how to delete a pair from an object:
 
-    jp '{"a":1,"b":2,"c":3}' .map .do .dup .k '"a"' .eq .if .pop .done .concat
+    jp '{"a":1,"b":2,"c":3}' {} .swap .map .do .dup .k '"a"' .eq .if .pop .else .concat .done
     {
       "c": 3,
       "b": 2
     }
-
 
 ### Logic
 
@@ -174,7 +181,7 @@ Pops the top stack item which should be a string containing an extended posix pa
 ### Misc
 
 #### .concat
-Concatenate strings, arrays or objects on the stack into one value.
+Concatenate the top two strings, arrays or objects on the stack into one value.
 
     jp '" World!"' '"Hello,"' .concat
     "Hello, World!"
@@ -227,13 +234,13 @@ Pops an object off the stack, pushing the object back with any duplicate keys re
 
 Want the last key to win? Reverse the object first:
 
-    jp '{"a":1,"a":2}' .map .do .done .concat .uniq
+    jp '{"a":1,"a":2}' {} .swap .map .do .concat .done .uniq
     {
       "a": 2
     }
 
 #### .def
-Define a macro. Pops a name off the stack (it must begin with .), then pops an expression. Whenever the name is encountered, it will be replaced with the expression. Recursive macros are not supported, but macro expressions can include other macros (just not themselves). Macros cannot be changed and redefinitions are ignored.
+Define a macro. Reads the next arg as the macro name (must begin with .). The following statement is used as the macro body. Whenever the name is encountered, it will be replaced with the macro body. Recursive macros are not supported, but macro bodies can include other macros (just not themselves). Macros cannot be changed and redefinitions are ignored.
 
     jp .def .abc .do '"a"' '"b"' '"c"' .done .abc
     "c"

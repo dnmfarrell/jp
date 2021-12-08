@@ -65,7 +65,7 @@ jp_drop_ws () {
 jp_expect () {
   if [ "$JP_C" != "$1" ];then
     local msg
-    printf -v msg "expected %q but found %q" "$1" "$JP_C"
+    printf -v msg "expected %q but saw %q" "$1" "$JP_C"
     jp_error "$msg" || return
   fi
 }
@@ -87,7 +87,7 @@ jp_array () {
         jp_drop_ws
         jp_read_next || return
       else
-        jp_error "expected , or ] but found '$JP_C'" || return
+        jp_error "expected , or ] but saw '$JP_C'" || return
       fi
     done
   fi
@@ -126,7 +126,7 @@ jp_object () {
         jp_drop_ws
         jp_read_next || return
       else
-        jp_error "expected , or } but found $JP_C" || return
+        jp_error "expected , or } but saw $JP_C" || return
       fi
     done
   fi
@@ -291,7 +291,7 @@ jp_parse_json () {
   while [[ "$JP_C" == [[:blank:]] ]];do
     jp_chomp
   done
-  [ "$JP_C" = $'\n' ] || jp_error "expected '\n' but found $JP_C" || return
+  [ "$JP_C" = $'\n' ] || jp_error "expected '\n' but saw $JP_C" || return
 }
 
 jp_detect_nullbyte () {
@@ -440,47 +440,32 @@ jp_v () {
 
 jp_concat () {
   jp_pop || return
-  if [ "${JP_OUT:0:1}" = '"' ];then
-    jp_concat_str
-  elif [ "${JP_OUT:0:1}" = '[' ];then
-    jp_concat_collection "[" "]"
-  elif [ "${JP_OUT:0:1}" = '{' ];then
-    jp_concat_collection "{" "}"
+  local accum
+  if jp__is_str;then
+    accum="\"${JP_OUT:1:$(("${#JP_OUT}"-2))}"
+    jp_pop || return
+    jp__is_str || jp_error "concat expected a string but saw '${JP_OUT:0:1}'" || return
+    accum+="${JP_OUT:1:$(("${#JP_OUT}"-2))}\"	"
   else
-    jp_error "concat can only concat strings, arrays or objects"
-  fi
-}
-
-jp_concat_str () {
-  local str="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
-  while [ $JP_STACKSIZE -gt 0 ];do
-    jp_pop || return
-    if [ "${JP_OUT:0:1}" = '"' ];then
-      str+="${JP_OUT:1:$(("${#JP_OUT}"-2))}"
+    accum="${JP_OUT:0:-1}"
+    if jp__is_arr;then
+      jp_pop || return
+      jp__is_arr || jp_error "concat expected an array but saw '${JP_OUT:0:1}'" || return
+    elif jp__is_obj;then
+      jp_pop || return
+      jp__is_obj || jp_error "concat expected an object but saw '${JP_OUT:0:1}'" || return
     else
-      jp_error "concat was expecting a string but found '${JP_OUT:0:1}'" || return
+      jp_error "can only concat strings, arrays or objects" || return
     fi
-  done
-  jp_push "\"$str\"	"
-}
-
-jp_concat_collection () {
-  local start="$1" end="$2" sep accum="${JP_OUT:0:-1}"
-  if [ ${#JP_OUT} -gt 2 ];then
-    sep=",	"
-  fi
-  while [ $JP_STACKSIZE -gt 0 ];do
-    jp_pop || return
-    if [ "${JP_OUT:0:1}" = "$start" ];then
-      if [ ${#JP_OUT} -gt 2 ];then
-        accum+="$sep${JP_OUT:1:-1}"
-        sep=",	"
-      fi
+    if [ "${#accum}" -eq 2 ];then # empty
+      accum="$JP_OUT	"
+    elif [ "${#JP_OUT}" -eq 3 ];then # empty
+      accum+="${JP_OUT:2:1}	"
     else
-      jp_error "++ was expecting a '$start' but found '${JP_OUT:0:1}'" || return
+      accum+=",${JP_OUT:1}	"
     fi
-  done
-  [ "${#accum}" -gt 1 ] && jp_push "$accum$end	"
+  fi
+  jp_push "$accum"
 }
 
 jp_collect () {
@@ -510,10 +495,10 @@ jp__test () {
       fi
       return
     fi
-  elif jp__is_int;then
+  elif jp__is_num;then
     left="$JP_OUT"
     jp_pop || return
-    if jp__is_int;then
+    if jp__is_num;then
       if [ $left $num_op $JP_OUT ];then
         jp_push "true	"
       else
@@ -525,12 +510,32 @@ jp__test () {
   jp_error "$op_name only works on pairs of strings or integers" || return
 }
 
-jp__is_int () {
-  [[ ${JP_OUT:0:1} == [[:digit:]-] ]]
+jp__is_obj () {
+  [ "${JP_OUT:0:1}" = '{' ]
+}
+
+jp__is_arr () {
+  [ "${JP_OUT:0:1}" = '[' ]
+}
+
+jp__is_bool () {
+  jp__is_false || jp__is_true
+}
+
+jp__is_false () {
+  [ ${JP_OUT:0:1} = 'f' ]
+}
+
+jp__is_true () {
+  [ ${JP_OUT:0:1} = 't' ]
 }
 
 jp__is_str () {
   [ ${JP_OUT:0:1} = '"' ]
+}
+
+jp__is_num () {
+  [[ ${JP_OUT:0:1} =~ [[:digit:]-] ]]
 }
 
 jp_eq () {
@@ -570,7 +575,7 @@ jp_match () {
     else
       jp_push "false	"
     fi
-  elif jp__is_int;then
+  elif jp__is_num;then
     if [[ $JP_OUT =~ $operand ]];then
       jp_push "true	"
     else
@@ -581,21 +586,39 @@ jp_match () {
   fi
 }
 
+jp__skip_next () {
+  jp_next_arg || return
+  if [ "$JP_ARG" = '.do' ];then
+    local last_skip=$JP_SKIP
+    JP_SKIP=1
+    jp_eval "$JP_ARG" || return
+    JP_SKIP=$last_skip
+  fi
+}
+
 jp_if () {
   jp_pop || return
-  if jp__is_bool;then
-    if [ ${JP_OUT:0:1} = 'f' ];then
-      jp_next_arg
-      if [ "$JP_ARG" = '.do' ];then
-        local last_skip=$JP_SKIP
-        JP_SKIP=1
-        jp_eval "$JP_ARG" || return
-        JP_SKIP=$last_skip
-      fi
+  if jp__is_false;then
+    jp__skip_next || return
+    jp_peek_arg
+    if [ "$JP_PEEK" = '.else' ];then
+      jp_next_arg || return
+    fi
+  elif jp__is_true;then
+    jp_next_arg || return
+    jp_eval "$JP_ARG"
+    jp_peek_arg
+    if [ "$JP_PEEK" = '.else' ];then
+      jp_next_arg || return
+      jp__skip_next || return
     fi
   else
     jp_error "if requires a bool" || return
   fi
+}
+
+jp_else () {
+  jp_error "else can only be used with if" || return
 }
 
 jp_do () {
@@ -606,17 +629,13 @@ jp_do () {
   done
 }
 
-jp__is_object () {
-  [ "${JP_OUT:0:1}" = '{' ]
-}
-
-jp__is_array () {
-  [ "${JP_OUT:0:1}" = '[' ]
+jp_done () {
+  jp_error "done can only be used with do" || return
 }
 
 jp_map () {
   jp_pop || return
-  if jp__is_object;then
+  if jp__is_obj;then
     if [ "${#JP_OUT}" -eq 3 ]; then # skip next expression
       jp_push "false	"
       jp_if
@@ -644,7 +663,7 @@ jp_map () {
         flipflop=0
       fi
     done
-  elif jp__is_array;then
+  elif jp__is_arr;then
     if [ "${#JP_OUT}" -eq 3 ]; then # skip next expression
       jp_push "false	"
       jp_if
@@ -678,10 +697,6 @@ jp_not () {
   else
     jp_error "not requires a bool" || return
   fi
-}
-
-jp__is_bool () {
-  [ ${JP_OUT:0:1} = 't' ] || [ ${JP_OUT:0:1} = 'f' ]
 }
 
 jp_or () {
@@ -799,6 +814,10 @@ jp_next_arg () {
   JP_ARG="${JP_ARGS[$((JP_ARGS_IDX))]}"
   (( JP_ARGS_IDX++ ))
   return 0
+}
+
+jp_peek_arg () {
+  JP_PEEK="${JP_ARGS[$((JP_ARGS_IDX))]}"
 }
 
 jp_eval () {

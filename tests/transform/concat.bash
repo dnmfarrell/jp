@@ -4,103 +4,107 @@ IFS=
 
 $(./jp null .concat 2>/dev/null)
 if [ $? -eq 1 ];then
-  pass "++ invalid type errors"
+  pass "concat invalid type errors"
 else
-  fail "++ invalid type does not error"
+  fail "concat invalid type does not error"
 fi
 
 $(echo '{}' | ./jp '[]' .concat 2>/dev/null)
 if [ $? -eq 1 ];then
-  pass "++ incompatible collection types errors"
+  pass "concat incompatible collection types errors"
 else
-  fail "++ incompatible collection types does not error"
+  fail "concat incompatible collection types does not error"
 fi
 
 $(./jp '{}' '"f"' .concat 2>/dev/null)
 if [ $? -eq 1 ];then
-  pass "++ incompatible string types errors"
+  pass "concat incompatible string types errors"
 else
-  fail "++ incompatible string types does not error"
+  fail "concat incompatible string types does not error"
 fi
 
-onestr=$(./jp '"f"' .concat)
-if [ "$onestr" = '"f"' ];then
-  pass '++ onestr string returns "f"'
+$(./jp '"f"' .concat 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "concat one string errors"
 else
-  printf -v onestresc "%q" "$onestr"
-  fail "++ onestr string returns unexpected: $onestresc"
+  fail "concat one string does not error"
 fi
 
-multistr=$(echo '"f "' | ./jp '"bar"' .concat)
-if [ "$multistr" = '"barf "' ];then
-  pass '++ multistr string returns "barf "'
+$(./jp [1] .concat 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "concat one array errors"
 else
-  printf -v multistresc "%q" "$multistr"
-  fail "++ multistr string returns unexpected: $multistresc"
+  fail "concat one array does not error"
 fi
 
-emptyarr=$(echo '[]' | ./jp .concat)
+$(./jp '{"a":1}' .concat 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "concat one object errors"
+else
+  fail "concat one object does not error"
+fi
+
+$(./jp '"f"' .concat 2>/dev/null)
+if [ $? -eq 1 ];then
+  pass "concat one string errors"
+else
+  fail "concat one string does not error"
+fi
+
+str=$(echo '"f "' | ./jp '"bar"' .concat)
+if [ "$str" = '"barf "' ];then
+  pass 'concat str string returns "barf "'
+else
+  printf -v stresc "%q" "$str"
+  fail "concat str string returns unexpected: $stresc"
+fi
+
+emptyarr=$(./jp [] [] .concat)
 if [ "$emptyarr" = '[]' ];then
-  pass '++ empty array returns []'
+  pass 'concat empty arrays returns []'
 else
   printf -v emptyarresc "%q" "$emptyarr"
-  fail "++ empty array returns unexpected: $emptyarresc"
+  fail "concat empty arrays returns unexpected: $emptyarresc"
 fi
 
-emptymultiarr=$(echo '[]' | ./jp '[]' '[]' .concat)
-if [ "$emptyarr" = '[]' ];then
-  pass '++ multiple empty array returns []'
+emptyarr=$(./jp '[]' '["foo"]' .concat)
+if [ "$emptyarr" = '["foo"]' ];then
+  pass 'concat one array with empty returns ["foo"]'
 else
-  printf -v emptyarresc "%q" "$emptyarr"
-  fail "++ multiple empty array returns unexpected: $emptyarresc"
+  printf -v emptyesc "%q" "$emptyarr"
+  fail "concat one array with empty return: $emptyesc"
 fi
 
-onearr=$(echo '[1]' | ./jp .concat)
-if [ "$onearr" = '[1]' ];then
-  pass '++ one array returns [1]'
+arr=$(./jp '[{"a":1}]' '["foo"]' .concat)
+if [ "$arr" = '["foo",{"a":1}]' ];then
+  pass 'concat arrays return ["foo",{"a":1},1]'
 else
-  printf -v onearresc "%q" "$onearr"
-  fail "++ one array returns unexpected: $onearresc"
+  printf -v arresc "%q" "$arr"
+  fail "concat arrays return unexpected: $arresc"
 fi
 
-multiarr=$(echo '[1]' | ./jp '[{"a":1}]' '["foo"]' .concat)
-if [ "$multiarr" = '["foo",{"a":1},1]' ];then
-  pass '++ multiple arrays return ["foo",{"a":1},1]'
-else
-  printf -v multiarresc "%q" "$multiarr"
-  fail "++ multiple arrays return unexpected: $multiarresc"
-fi
-
-emptyobj=$(echo '{}' | ./jp .concat)
+emptyobj=$(./jp '{}' '{}' .concat)
 if [ "$emptyobj" = '{}' ];then
-  pass '++ empty object returns {}'
+  pass 'concat empty objects returns {}'
 else
   printf -v emptyobjesc "%q" "$emptyobj"
-  fail "++ empty object returns unexpected: $emptyobjesc"
+  fail "concat empty objects returns unexpected: $emptyobjesc"
 fi
 
-emptymultiobj=$(echo '{}' | ./jp '{}' '{}' .concat)
-if [ "$emptyobj" = '{}' ];then
-  pass '++ multiple empty object returns {}'
-else
-  printf -v emptyobjesc "%q" "$emptyobj"
-  fail "++ multiple empty object returns unexpected: $emptyobjesc"
-fi
-
-oneobj=$(echo '{"A":1}' | ./jp .concat)
+oneobj=$(./jp '{"A":1}' {} .concat)
 if [ "$oneobj" = '{"A":1}' ];then
-  pass '++ one object returns {"A":1}'
+  pass 'concat one object with empty returns {"A":1}'
 else
   printf -v oneobjesc "%q" "$oneobj"
-  fail "++ one object returns unexpected: $oneobjesc"
+  fail "concat one object with empty returns unexpected: $oneobjesc"
 fi
 
-multiobj=$(echo '{"b":false}' | ./jp '{"a":[1]}' '{"foo":5}' .concat)
-if [ "$multiobj" = '{"foo":5,"a":[1],"b":false}' ];then
-  pass '++ multiple objects return {"foo":5,"a":[1],"b":false}'
+obj=$(./jp '{"a":[1]}' '{"foo":5}' .concat)
+if [ "$obj" = '{"foo":5,"a":[1]}' ];then
+  pass 'concat objects return {"foo":5,"a":[1]}'
 else
-  printf -v multiobjesc "%q" "$multiobj"
-  fail "++ multiple objects return unexpected: $multiobjesc"
+  printf -v objesc "%q" "$obj"
+  fail "concat objects return unexpected: $objesc"
 fi
 
 end
