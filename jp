@@ -322,24 +322,21 @@ jp_pop () {
   JP_STACKSIZE=$(( JP_STACKSIZE - 1 ))
 }
 
-jp_drop () {
-  jp_pop || return
-  if [[ $JP_OUT =~ ^[0-9]+$ ]];then
-    local drop_count="$JP_OUT"
-    while [ $drop_count -gt 0 ];do
-      jp_pop || return
-      drop_count=$(( drop_count - 1 ))
-    done
-  else
-    jp_error "can only drop a positive number of items but saw '$JP_OUT'" || return
-  fi
-}
-
 jp_dup () {
-  [ $JP_STACKSIZE -gt 0 ] || jp_error "cannot dup an empty stack" || return
+  [ $JP_STACKSIZE -gt 0 ] || jp_error "dup needs one item on the stack" || return
   jp_pop
   jp_push "$JP_OUT	"
   jp_push "$JP_OUT	"
+}
+
+jp_over () {
+  [ $JP_STACKSIZE -gt 1 ] || jp_error 'over needs two items on the stack' || return
+  jp_swap
+  jp_dup
+  jp_pop
+  local over_buf="$JP_OUT"
+  jp_swap
+  jp_push "$over_buf	"
 }
 
 jp_swap () {
@@ -351,43 +348,13 @@ jp_swap () {
   jp_push "$JP_OUT	"
 }
 
-jp_exists () {
-  jp_pop || return
-  local k=$JP_OUT
-  [ "${k:0:1}" = '"' ] || jp_error "exists requires a string but saw '$JP_OUT'" || return
-  jp_pop || return
-  if [ "${JP_OUT:0:1}" = '{' ];then
-    if [ "${#JP_OUT}" -eq 3 ];then
-      jp_push "$JP_OUT	"
-      jp_push "false	"
-      return
-    fi
-    local flipflop=0 nestcnt=0
-    for t in ${JP_OUT:2:-2};do
-      if [ $flipflop -eq 0 ];then # key
-        if [ "$k" = "$t" ];then
-          jp_push "$JP_OUT	"
-          jp_push "true	"
-          return
-        fi
-        flipflop=$(( flipflop + 1 ))
-      elif [ $flipflop -eq 1 ];then # :
-        flipflop=$(( flipflop + 1 ))
-      elif [ $flipflop -eq 2 ];then # val
-        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
-        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
-        if [ $nestcnt -eq 0 ];then
-          flipflop=$(( flipflop + 1 ))
-        fi
-      else # ,
-        flipflop=0
-      fi
-    done
-    jp_push "$JP_OUT	"
-    jp_push "false	"
-  else
-    jp_error "exists looks up a key on objects, but saw '$JP_OUT'" || return
-  fi
+jp_rot () {
+  [ $JP_STACKSIZE -gt 2 ] || jp_error 'rot needs three items on the stack' || return
+  jp_pop
+  local rot_buf="$JP_OUT"
+  jp_swap
+  jp_push "$rot_buf	"
+  jp_swap
 }
 
 jp_uniq () {
@@ -753,6 +720,28 @@ jp_and () {
   jp_error "and requires two bools" || return
 }
 
+jp_def () {
+  jp_next_arg || return
+  [ "${JP_ARG:0:1}" = '.' ] || jp_error "can only def names beginning with ." || return
+  local oname="$JP_ARG" name="jp_${JP_ARG:1}" args argc=1 nestcnt=0
+  jp_next_arg || return
+  args+="'$JP_ARG'	"
+  [ "$JP_ARG" != "$oname" ] || jp_error ".def $oname recursive defs are not allowed" || return
+  if [ "$JP_ARG" = '.do' ];then
+    (( nestcnt++ ))
+    while [ $nestcnt -gt 0 ];do
+      jp_next_arg || return
+      args+="'$JP_ARG'	"
+      ((argc++))
+      [ "$JP_ARG" = '.do' ] && ((nestcnt++))
+      [ "$JP_ARG" = '.done' ] && ((nestcnt--))
+      [ "$JP_ARG" != "$oname" ] || jp_error ".def $oname recursive defs are not allowed" || return
+    done
+  fi
+  type -t $name &>/dev/null && return # don't redefine functions
+  eval $"$name () { JP_ARGS_LEN=\$((JP_ARGS_LEN+$argc-1));((JP_ARGS_IDX--));JP_ARGS=(\${JP_ARGS[@]:0:\$JP_ARGS_IDX} $args \${JP_ARGS[@]:\$((JP_ARGS_IDX+1))}); }"
+}
+
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
@@ -856,6 +845,14 @@ jp_run () {
   return 0
 }
 
+jp_def_builtins () {
+  JP_ARGS=(.def .exists .do 'false' .rot .map .do .k .rot .swap .over .eq .rot .or .done .swap .pop .done)
+  JP_ARGS_LEN=${#JP_ARGS[@]}
+  JP_ARGS_IDX=0
+  jp_next_arg || return
+  jp_eval "$JP_ARG" || return
+}
+
 jp_main () {
   JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
@@ -870,6 +867,7 @@ jp_main () {
     esac
   done
   shift $((OPTIND-1)) # reset options processing
+  jp_def_builtins
   [ $JP_INPUT ] && jp_readline
   while :;do
     JP_ARGS=("$@")

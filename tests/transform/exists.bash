@@ -24,7 +24,7 @@ else
 fi
 
 empty=$(./jp '{}' '"foo"' .exists)
-if [ "$empty" = $'false\n{}' ];then
+if [ "$empty" = $'false' ];then
   pass "exists on empty object returns false"
 else
   printf -v emptyesc "%q" "$empty"
@@ -32,7 +32,7 @@ else
 fi
 
 first=$(./jp '{"a":1,"b":2}' '"a"' .exists)
-if [ "$first" = $'true\n{"a":1,"b":2}' ];then
+if [ "$first" = $'true' ];then
   pass "exists matches first key in object"
 else
   printf -v firstesc "%q" "$first"
@@ -40,7 +40,7 @@ else
 fi
 
 last=$(./jp '{"a":1,"b":2}' '"b"' .exists)
-if [ "$last" = $'true\n{"a":1,"b":2}' ];then
+if [ "$last" = $'true' ];then
   pass "exists matches last key in object"
 else
   printf -v lastesc "%q" "$last"
@@ -48,7 +48,7 @@ else
 fi
 
 zero=$(./jp '{"":1}' '""' .exists)
-if [ "$zero" = $'true\n{"":1}' ];then
+if [ "$zero" = $'true' ];then
   pass "exists matches empty string"
 else
   printf -v zeroesc "%q" "$zero"

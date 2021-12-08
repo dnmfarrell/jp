@@ -4,9 +4,9 @@ A JSON processor: it takes a stream of JSON text, parses it onto a stack, option
 
     jp [options] [arg ...]
 
-    echo '[{"id":1},{"id":2}]' | jp .vals '"id"' .k .vals
-    1
+    echo '[{"id":1},{"id":2}]' | jp .map .v
     2
+    1
 
 Options
 -------
@@ -40,33 +40,135 @@ If jp received any input and it was successfully parsed into tokens, they will b
     ["customer",1]
     ["customer",2]
 
-### JSON values
+### Stack Control
+
+#### JSON values
 Any JSON literal will be parsed and pushed onto the stack, here's a string:
 
     jp '"howdy"'
     "howdy"
 
-### .pop
+#### .pop
 Pops the top item off the stack, deleting it.
 
     jp 1 .pop
     # no output as stack is empty
 
-### .swap
+#### .swap
 Swaps the top two items of the stack with each other.
 
     jp '"Hello"' '"World!"' .swap
     "Hello"
     "World!"
 
-### .dup
+#### .dup
 Copies the value on the top of the stack making it the top two items.
 
     jp '"Hello"' .dup
     "Hello"
     "Hello"
 
-### .concat
+#### .over
+Copies the second stack element onto the top of the stac, "over" the first.
+
+    jp 1 2 .over
+    1
+    2
+    1
+
+#### .rot
+Rotates the third stack item into first place.
+
+    jp 1 2 3 .rot
+    1
+    3
+    2
+
+### Control Flow
+
+#### .do ... .done
+Declares a block of code as a single expression. Do blocks are accepted by `.if` and `.map`, and can be nested.
+
+    jp .do 1 2 3 .done
+    3
+    2
+    1
+
+#### .if
+Pops the top stack item and if it is true, evaluates the next expression, otherwise ignoring it.
+
+    jp true .if 1
+    1
+
+    jp false .if .do 1 2 3 .done
+    # no output
+
+#### .map
+Pops an object/array off the stack and pushes each element onto the stack, evaluating the next expression every iteration.
+
+    jp [1,2,3] .map .do 3 .le .done
+    true
+    false
+    false
+
+Map is powerful. For example, here's how to delete a pair from an object:
+
+    jp '{"a":1,"b":2,"c":3}' .map .do .dup .k '"a"' .eq .if .pop .done .concat
+    {
+      "c": 3,
+      "b": 2
+    }
+
+
+### Logic
+
+#### .and
+Returns the conjunction of the top two stack items.
+
+    jp true false .and
+    false
+
+
+#### .or
+Returns the disjunction of the top two stack items.
+
+    jp true false .or
+    true
+
+#### .not
+Returns the logical complement (negation) of the top stack item.
+
+    jp true .not
+    false
+
+#### .exists
+Pops a string off the stack, then pops an object. Pushes true/false depending on whether the string is found as a key in the object.
+
+    jp '{"a":1}' '"b"' .exists
+    false
+
+Exists is implemented as a macro, using, `.def` and `.map`.
+
+### Comparisons
+
+#### .lt .le .eq .ne .ge .gt
+Pops the top two stack items and pushes true/false depending on the result of the comparison. Bash can only compare integers and strings.
+
+    jp 1 2 .eq
+    false
+
+N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons.
+
+#### .match
+Pops the top stack item which should be a string containing an extended posix pattern. Pops the next item and compares them, pushing true/false onto the stack.
+
+
+    jp '"5"' '"^[0-9]+$"' .match
+    true
+
+### Misc
+
+#### .concat
 Concatenate strings, arrays or objects on the stack into one value.
 
     jp '" World!"' '"Hello,"' .concat
@@ -87,27 +189,7 @@ Concatenate strings, arrays or objects on the stack into one value.
       "email": "lex@example.com"
     }
 
-### .keys
-Pop an object off the stack and push one value for each key.
-
-    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' .keys
-    "email"
-    "name"
-
-### .vals
-Pop an object/array off the stack and push one value for each item.
-
-    jp '{"name":"Lex Luthor", "email":"lex@example.com"}' .vals
-    "lex@example.com"
-    "Lex Luthor"
-
-    jp '["octocat","atom","electron","api"]' .vals
-    "api"
-    "electron"
-    "atom"
-    "octocat"
-
-### .collect
+#### .collect
 Creates a new array, pops every stack item appending it to the array and pushes the array.
 
     jp '"octocat"' '"atom"' '"electron"' '"api"' .collect
@@ -118,64 +200,33 @@ Creates a new array, pops every stack item appending it to the array and pushes 
       "octocat"
     ]
 
-Combine with `.vals` to reverse an array:
+#### .k
+Pops an object off the stack, pushing the first key back on the stack.
 
-    jp '["octocat","atom","electron","api"]' .vals .collect
-    [
-      "octocat",
-      "atom",
-      "electron",
-      "api"
-    ]
+    jp '{"a":1,"b":2}' .k
+    "a"
 
-### .drop
-Pops the top item off the stack to get a count. Then pops that many items, deleting them.
+#### .v
+Pops an object off the stack, pushing the first value back on the stack.
 
-    jp '"foo"' '"bar"' 1 .drop
-    "foo"
+    jp '{"a":1,"b":2}' .v
+    1
 
-### .pairs
-Pop an object off the stack and pushes an object for each key/value pair.
+#### .uniq
+Pops an object off the stack, pushing the object back with any duplicate keys removed. The first key wins:
 
-    jp -P '{"name":"Lex Luthor", "email":"lex@example.com"}' .pairs
-    {"email":"lex@example.com"}
-    {"name":"Lex Luthor"}
+    jp '{"a":1,"a":2}' .uniq
+    {
+      "a": 1
+    }
 
-### .k
-Pops a string and then pops every item off the stack, accumulating all the key values (if found) in an array, pushes the array.
+#### .def
+Define a macro. Pops a name off the stack (it must begin with .), then pops an expression. Whenever the name is encountered, it will be replaced with the expression. Recursive macros are not supported, but macro expressions can include other macros (just not themselves). Macros cannot be changed and redefinitions are ignored.
 
-    jp -P '{"user":"dnmfarrell","email":"david@example.com"}' '"email"' .k
-    ["david@example.com"]
-
-### .i
-Pops an integer off the stack to use as an index and then pops every array off the stack, accumulating all the values (if found) in an array, pushes the array.
-
-    jp -P '["JavaScript","PHP","Perl"]' 1 .i
-    ["PHP"]
-
-### .lt .le .eq .ne .ge .gt
-Filter strings/numbers. Pops the first value off the stack to use as an operand, then pops all remaining values off the stack, accumulating any which pass the comparison in an array, pushes the array.
-
-    jp -P 1 2 3 2 .le
-    [2,1] # less than or equal to 2
-
-N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons. For `.le` string comparisons, jp uses `<`, and `>` for `.ge'.
-
-### .match
-Match a string extended posix pattern against other strings or numbers.
-
-    jp '"5"' 123 5.0 -1 '"foo"' '"^[0-9]+$"' .match
-    [
-      123,
-      "5"
-    ]
-
-### .count
-Replaces the stack with a count of stack items.
-
-    jp '"JavaScript"' '"PHP"' '"Perl"' .count
-    3
-
+    jp .def .abc .do '"a"' '"b"' '"c"' .done .abc
+    "c"
+    "b"
+    "a"
 
 Print
 -----
@@ -234,34 +285,10 @@ Tests are shell scripts which emit [TAP](https://testanything.org/) output. You 
 
 From the root project directory:
 
-    prove $(find tests -name '*bash')
-    tests/parse/string-unicode.bash ....... ok
-    tests/parse/array.bash ................ ok
-    tests/parse/json-test-suite.bash ...... ok
-    tests/parse/null.bash ................. ok
-    tests/parse/halts.bash ................ ok
-    tests/transform/count.bash ............ ok
-    tests/transform/json-test-suite.bash .. ok
-    tests/transform/match.bash ............ ok
-    tests/transform/push.bash ............. ok
-    tests/transform/drop.bash ............. ok
-    tests/transform/keys.bash ............. ok
-    tests/transform/pop.bash .............. ok
-    tests/transform/collect.bash .......... ok
-    tests/transform/concat.bash ........... ok
-    tests/transform/dup.bash .............. ok
-    tests/transform/k.bash ................ ok
-    tests/transform/i.bash ................ ok
-    tests/transform/pairs.bash ............ ok
-    tests/transform/swap.bash ............. ok
-    tests/transform/vals.bash ............. ok
-    tests/transform/test.bash ............. ok
-    tests/print/plain.bash ................ ok
-    tests/print/indent.bash ............... ok
-    tests/print/pretty.bash ............... ok
-    tests/print/silent.bash ............... ok
+    prove tests/**/*.bash
+    ...
     All tests successful.
-    Files=25, Tests=457,  6 wallclock secs ( 0.19 usr  0.06 sys +  5.26 cusr  1.53 csys =  7.04 CPU)
+    Files=28, Tests=473,  6 wallclock secs ( 0.16 usr  0.04 sys +  5.34 cusr  1.11 csys =  6.65 CPU)
     Result: PASS
 
 Shell Native
