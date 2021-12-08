@@ -94,6 +94,11 @@ Declares a block of code as a single expression. Do blocks are accepted by `.if`
     2
     1
 
+Empty do blocks can be used as "no ops", like when you want to reverse an object:
+
+    jp -P [1,2,3] .map .do .done .collect
+    [3,2,1]
+
 #### .if
 Pops the top stack item and if it is true, evaluates the next expression, otherwise ignoring it.
 
@@ -218,6 +223,13 @@ Pops an object off the stack, pushing the object back with any duplicate keys re
     jp '{"a":1,"a":2}' .uniq
     {
       "a": 1
+    }
+
+Want the last key to win? Reverse the object first:
+
+    jp '{"a":1,"a":2}' .map .do .done .concat .uniq
+    {
+      "a": 2
     }
 
 #### .def
