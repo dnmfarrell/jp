@@ -3,14 +3,14 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .swap 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "swap empty stack errors"
 else
   fail "swap empty stack does not error"
 fi
 
 $(./jp 1 .swap 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "swap one stack errors"
 else
   fail "swap one stack does not error"

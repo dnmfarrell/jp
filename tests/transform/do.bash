@@ -3,7 +3,7 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .do 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "unterminated do errors"
 else
   fail "unterminated do does not error"
@@ -17,7 +17,7 @@ else
 fi
 
 $(./jp .do .do .done 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "unterminated nested do errors"
 else
   fail "unterminated nested do does not error"

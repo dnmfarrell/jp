@@ -3,49 +3,49 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp null .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat invalid type errors"
 else
   fail "concat invalid type does not error"
 fi
 
 $(echo '{}' | ./jp '[]' .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat incompatible collection types errors"
 else
   fail "concat incompatible collection types does not error"
 fi
 
 $(./jp '{}' '"f"' .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat incompatible string types errors"
 else
   fail "concat incompatible string types does not error"
 fi
 
 $(./jp '"f"' .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat one string errors"
 else
   fail "concat one string does not error"
 fi
 
 $(./jp [1] .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat one array errors"
 else
   fail "concat one array does not error"
 fi
 
 $(./jp '{"a":1}' .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat one object errors"
 else
   fail "concat one object does not error"
 fi
 
 $(./jp '"f"' .concat 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "concat one string errors"
 else
   fail "concat one string does not error"

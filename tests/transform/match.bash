@@ -3,28 +3,28 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .match 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "match empty stack errors"
 else
   fail "match empty stack does not error"
 fi
 
 $(./jp '"*"' .match 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "match missing right operand errors"
 else
   fail "match missing right operand does not error"
 fi
 
 $(./jp null .match 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "match illegal operand type errors"
 else
   fail "match illegal operand type does not error"
 fi
 
 $(./jp '{}' '"*"' .match 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "match illegal type errors"
 else
   fail "match illegal type does not error"

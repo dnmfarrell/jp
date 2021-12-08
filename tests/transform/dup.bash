@@ -3,7 +3,7 @@ source "test-bootstrap.bash"
 IFS=
 
 empty=$(./jp .dup 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "dup empty stack errors"
 else
   fail "dup empty stack does not error"

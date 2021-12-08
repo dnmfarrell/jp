@@ -2,7 +2,7 @@
 source "test-bootstrap.bash"
 
 empty=$(./jp .pop 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "pop empty stack errors"
 else
   fail "pop empty stack does not error"

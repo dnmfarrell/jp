@@ -3,21 +3,21 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .exists 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "exists on empty stack errors"
 else
   fail "exists on empty stack does not error"
 fi
 
 $(./jp {} 1 .exists 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "exists on non-string stack errors"
 else
   fail "exists on non-string stack does not error"
 fi
 
 $(./jp 1 '"f"' .exists 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "exists on non-object stack errors"
 else
   fail "exists on non-object stack does not error"

@@ -3,14 +3,14 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .not 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "not empty stack errors"
 else
   fail "not empty stack does not error"
 fi
 
 $(./jp null .not 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "not illegal operand type errors"
 else
   fail "not illegal operand type does not error"

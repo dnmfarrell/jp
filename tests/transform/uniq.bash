@@ -3,14 +3,14 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .uniq 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "uniq on empty stack errors"
 else
   fail "uniq on empty stack does not error"
 fi
 
 $(./jp 1 .uniq 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "uniq on non-object stack errors"
 else
   fail "uniq on non-object stack does not error"

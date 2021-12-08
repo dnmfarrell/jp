@@ -3,28 +3,28 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .or 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "or empty stack errors"
 else
   fail "or empty stack does not error"
 fi
 
 $(./jp true .or 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "or missing right operand errors"
 else
   fail "or missing right operand does not error"
 fi
 
 $(./jp null .or 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "or illegal left operand errors"
 else
   fail "or illegal left operand does not error"
 fi
 
 $(./jp false null .or 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "or illegal right operand errors"
 else
   fail "or illegal right operand does not error"

@@ -3,14 +3,14 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp [1,2,3] .map 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "map without expression errors"
 else
   fail "map without expression does not error"
 fi
 
 $(./jp [1,2,3] .map [1] .map 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "seq maps without expression errors"
 else
   fail "seq maps without expression do not error"

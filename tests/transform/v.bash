@@ -3,21 +3,21 @@ source "test-bootstrap.bash"
 IFS=
 
 $(./jp .v 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "v on empty stack errors"
 else
   fail "v on empty stack does not error"
 fi
 
 $(./jp '"f"' .v 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "v on non-object errors"
 else
   fail "v on non-object does not error"
 fi
 
 $(./jp {} .v 2>/dev/null)
-if [ $? -eq 1 ];then
+if [ $? -ne 0 ];then
   pass "v on empty object errors"
 else
   fail "v on empty object does not error"
