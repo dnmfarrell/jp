@@ -688,53 +688,6 @@ jp_map () {
   fi
 }
 
-jp_not () {
-  jp_pop || return
-  if [ ${JP_OUT:0:1} = 't' ];then
-    jp_push 'false	'
-  elif [ ${JP_OUT:0:1} = 'f' ];then
-    jp_push 'true	'
-  else
-    jp_error "not requires a bool" || return
-  fi
-}
-
-jp_or () {
-  jp_pop || return
-  if jp__is_bool;then
-    local left="$JP_OUT"
-    jp_pop || return
-    if jp__is_bool;then
-      local right="$JP_OUT"
-      if [ "$left" = "$right" ];then
-        jp_push "$left	"
-      else
-        jp_push "true	"
-      fi
-      return
-    fi
-  fi
-  jp_error "or requires two bools" || return
-}
-
-jp_and () {
-  jp_pop || return
-  if jp__is_bool;then
-    local left="$JP_OUT"
-    jp_pop || return
-    if jp__is_bool;then
-      local right="$JP_OUT"
-      if [ "$left" = "$right" ];then
-        jp_push "$left	"
-      else
-        jp_push "false	"
-      fi
-      return
-    fi
-  fi
-  jp_error "and requires two bools" || return
-}
-
 jp_def () {
   jp_next_arg || return
   [ "${JP_ARG:0:1}" = '.' ] || jp_error "can only def names beginning with ." || return
@@ -864,29 +817,32 @@ jp_run () {
   return 0
 }
 
-jp_def_builtins () {
-  JP_ARGS=(.def .exists .do 'false' .rot .map .do .k .rot .swap .over .eq .rot .or .done .swap .pop .done)
-  JP_ARGS_LEN=${#JP_ARGS[@]}
-  JP_ARGS_IDX=0
-  jp_next_arg || return
-  jp_eval "$JP_ARG" || return
+jp_load_macros () {
+  [ -f "$1" ] || jp_error "cannot find macro file: $1" || return
+  [ -r "$1" ] || jp_error "cannot open macro file for reading: $1" || return
+  while IFS=" " read -r -a JP_ARGS;do
+    JP_ARGS_LEN=${#JP_ARGS[@]}
+    JP_ARGS_IDX=0
+    jp_next_arg || return
+    jp_eval "$JP_ARG" || return
+  done < "$1"
 }
 
 jp_main () {
   JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
   [ -t 0 ] || JP_INPUT=1  # read input if being piped
-  while getopts "pPsti:" opt; do
+  while getopts "pPsti:m:" opt; do
     case "$opt" in
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
       't') trap '(jp_trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
       'i') JP_INDENT="$OPTARG";;
-      's') JP_SILENT=1
+      's') JP_SILENT=1;;
+      'm') jp_load_macros "$OPTARG"
     esac
   done
   shift $((OPTIND-1)) # reset options processing
-  jp_def_builtins
   [ $JP_INPUT ] && jp_readline
   while :;do
     JP_ARGS=("$@")

@@ -12,6 +12,7 @@ Options
 -------
 
     -i  set indent value (default is two spaces)
+    -m  load macros from a file
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
     -s  silent, disable print step
@@ -133,33 +134,32 @@ Map is powerful. For example, here's how to delete a pair from an object:
     }
 
 ### Logic
+All of the logic functions are implemented as macros in the file `macros.jp`.
 
 #### .and
 Returns the conjunction of the top two stack items.
 
-    jp true false .and
+    jp -m macros.jp true false .and
     false
 
 
 #### .or
 Returns the disjunction of the top two stack items.
 
-    jp true false .or
+    jp -m macros.jp true false .or
     true
 
 #### .not
 Returns the logical complement (negation) of the top stack item.
 
-    jp true .not
+    jp -m macros.jp true .not
     false
 
 #### .exists
 Pops a string off the stack, then pops an object. Pushes true/false depending on whether the string is found as a key in the object.
 
-    jp '{"a":1}' '"b"' .exists
+    jp -m macros.jp '{"a":1}' '"b"' .exists
     false
-
-Exists is implemented as a macro, using, `.def` and `.map`.
 
 ### Comparisons
 
@@ -246,6 +246,12 @@ Define a macro. Reads the next arg as the macro name (must begin with .). The fo
     "c"
     "b"
     "a"
+
+You can load a file of macro definitions by providing the `-m` option. Macro files are loaded line-by-line, so macro definitions cannot contain newlines. This repo has an example macros file, `macros.jp`:
+
+    # load the .exists macro
+    jp -m macros.jp '{"a":1}' '"a"' .exists
+    true
 
 Print
 -----
