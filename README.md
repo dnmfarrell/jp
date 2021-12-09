@@ -178,7 +178,7 @@ Pops the top stack item which should be a string containing an extended posix pa
     jp '"5"' '"^[0-9]+$"' .match
     true
 
-### Misc
+### Changing Data
 
 #### .concat
 Concatenate the top two strings, arrays or objects on the stack into one value.
@@ -200,6 +200,19 @@ Concatenate the top two strings, arrays or objects on the stack into one value.
       "name": "Lex Luthor",
       "email": "lex@example.com"
     }
+
+#### .cons
+Pops a value off the stack, then pops an array and prepends the value to the array, pushing the new array back onto the stack.
+
+    ./jp -P [2,3] 1 .cons
+    [1,2,3]
+
+Can be used with `.map` to reverse an array:
+
+    jp -P [1,2,3] [] .swap .map .cons
+    [3,2,1]
+
+Indeed this is the definition of the `.reva` macro.
 
 #### .collect
 Creates a new array, pops every stack item appending it to the array and pushes the array.
@@ -238,6 +251,8 @@ Want the last key to win? Reverse the object first:
     {
       "a": 2
     }
+
+### Programming
 
 #### .def
 Define a macro. Reads the next arg as the macro name (must begin with .). The following statement is used as the macro body. Whenever the name is encountered, it will be replaced with the macro body. Recursive macros are not supported, but macro bodies can include other macros (just not themselves). Macros cannot be changed and redefinitions are ignored.

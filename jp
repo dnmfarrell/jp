@@ -688,6 +688,18 @@ jp_map () {
   fi
 }
 
+jp_cons () {
+  jp_pop || return
+  local val="$JP_OUT"
+  jp_pop || return
+  jp__is_arr || jp_error "can only cons a value to an array" || return
+  if [ "${#JP_OUT}" -eq 3 ];then # empty
+    jp_push "[	$val	]	"
+  else
+    jp_push "[	$val	,	${JP_OUT:2}	"
+  fi
+}
+
 jp_def () {
   jp_next_arg || return
   [ "${JP_ARG:0:1}" = '.' ] || jp_error "can only def names beginning with ." || return
