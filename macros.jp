@@ -1,4 +1,4 @@
-.def .exists .do 'false' .rot .map .do .k .rot .swap .over .eq .rot .or .done .swap .pop .done
+.def .exists .do false .rot .map .do .k .rot .swap .over .eq .rot .or .done .swap .pop .done
 .def .not .do .if false .else true .done
 .def .and .do .if .do .if true .else false .done .else .do .pop false .done .done
 .def .or .do .if .do .pop true .done .else .do .if true .else false .done .done
