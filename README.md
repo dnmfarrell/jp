@@ -70,7 +70,7 @@ Copies the value on the top of the stack making it the top two items.
     "Hello"
 
 #### .over
-Copies the second stack element onto the top of the stac, "over" the first.
+Copies the second stack item onto the top of the stack, "over" the first.
 
     jp 1 2 .over
     1
@@ -87,8 +87,8 @@ Rotates the third stack item into first place.
 
 ### Control Flow
 
-#### .do ... .done
-Declares a block of code as a single statement. Do blocks are accepted by `.if` and `.map`, and can be nested.
+#### .do .. .done
+Declares a block of code as a single statement, must be terminated with `.done`. Do blocks can be nested.
 
     jp .do 1 2 3 .done
     3
@@ -118,14 +118,14 @@ Pops the top stack item and if it is true, evaluates the next statement, otherwi
     4
 
 #### .map
-Pops an object/array off the stack and pushes each element onto the stack, evaluating the next statement every iteration.
+Pops an object/array off the stack and pushes each element onto the stack one by one, evaluating the next statement every iteration.
 
     jp [1,2,3] .map .do 3 .le .done
     true
     false
     false
 
-Map is powerful. For example, here's how to delete a pair from an object:
+Map is powerful. For example here's how to delete a pair from an object:
 
     jp '{"a":1,"b":2,"c":3}' {} .swap .map .do .dup .k '"a"' .eq .if .pop .else .concat .done
     {
@@ -172,10 +172,10 @@ Pops the top two stack items and pushes true/false depending on the result of th
 N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons.
 
 #### .match
-Pops the top stack item which should be a string containing an extended posix pattern. Pops the next item and compares them, pushing true/false onto the stack.
+Pops the top stack item which should be a string containing an extended posix pattern. Pops the next item (which should be a string or number) compares them, pushing true/false onto the stack.
 
 
-    jp '"5"' '"^[0-9]+$"' .match
+    jp 5 '"^[0-9]+$"' .match
     true
 
 ### Changing Data
@@ -201,10 +201,12 @@ Concatenate the top two strings, arrays or objects on the stack into one value.
       "email": "lex@example.com"
     }
 
+`.concat` can be combined with `.map` to create filter, delete and update routines.
+
 #### .cons
 Pops a value off the stack, then pops an array and prepends the value to the array, pushing the new array back onto the stack.
 
-    ./jp -P [2,3] 1 .cons
+    jp -P [2,3] 1 .cons
     [1,2,3]
 
 Can be used with `.map` to reverse an array:
@@ -225,17 +227,25 @@ Creates a new array, pops every stack item appending it to the array and pushes 
       "octocat"
     ]
 
+#### .fromstr
+Pops a string off the stack, strips its outer quotes and re-parses it as JSON. This can be used to cast a valid JSON string into any other JSON type. As `.ex` command output is always treated as strings, the two commands often go together:
+
+    jp '"date"' '"+%s"' 2 .ex .fromstr
+    1639074686
+
 #### .k
-Pops an object off the stack, pushing the first key back on the stack.
+Pops an object off the stack, pushing the first key back on the stack. See also `.v`.
 
     jp '{"a":1,"b":2}' .k
     "a"
 
-#### .v
-Pops an object off the stack, pushing the first value back on the stack.
+#### .pair
+Pops the top item off the stack, which must be a string. Pops the next item as its value and pushes an object with a single key/value pair back onto the stack.
 
-    jp '{"a":1,"b":2}' .v
-    1
+    jp 123 '"a"' .pair
+    {
+      "a": 123
+    }
 
 #### .uniq
 Pops an object off the stack, pushing the object back with any duplicate keys removed. The first key wins:
@@ -252,6 +262,12 @@ Want the last key to win? Reverse the object first:
       "a": 2
     }
 
+#### .v
+Pops an object off the stack, pushing the first value back on the stack. See also `.k`.
+
+    jp '{"a":1,"b":2}' .v
+    1
+
 ### Programming
 
 #### .def
@@ -267,6 +283,40 @@ You can load a file of macro definitions by providing the `-m` option. Macro fil
     # load the .exists macro
     jp -m macros.jp '{"a":1}' '"a"' .exists
     true
+
+Two advantages of defining macros in a file: first, they are only parsed once per jp process and second, arguments do not need to be quoted like they do on the command line:
+
+    .def .abc .do "a" "b" "c" .done
+
+#### .ex
+Calls another program, stringifies its output and pushes it onto the stack. Pops the number of args to collect off the stack, and then pops that many args, building a command string by stripping surrounding quotes and prepending the result to the command string. Evals the command string and stringifies the output, pushing it back onto the stack.
+
+    jp '"date"' 1 .ex
+    "Thu 09 Dec 2021 01:54:08 PM EST"
+
+Note the command args are prepended into the command string so they are backwards on the stack, but this makes them easier to read. Even if the quoting does get gnarly (see `.q`):
+
+    jp '"perl"' '"-E"' $'"\'say for 1..5\'"' 3 .ex
+    "5"
+    "4"
+    "3"
+    "2"
+    "1"
+
+If the output is valid JSON, `.fromstr` can be used to cast the string into another value:
+
+    jp '"date"' '"+%s"' 2 .ex .fromstr
+    1639076249
+
+#### .q and .nq
+Quoting command line args can get pretty tiresome, so `.q` enables quote mode, which causes jp to wrap any JSON arg in quotes. The `.nq` command disables quote mode. Args must still be quoted to avoid word splitting. The `.ex` example condenses nicely:
+
+    jp .q perl -E "'say for 1..5'" .nq 3 .ex
+    "5"
+    "4"
+    "3"
+    "2"
+    "1"
 
 Print
 -----
