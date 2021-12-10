@@ -745,6 +745,14 @@ jp_fromstr () {
   jp__is_str || jp_error "fromstr requires a string arg" || return
   jp_eval "${JP_OUT:1:-1}" # strip quotes
 }
+
+jp_pair () {
+  jp_pop || return
+  jp__is_str || jp_error "pair requires a string arg" || return
+  local k="$JP_OUT"
+  jp_pop || return
+  jp_push "{	$k	:	$JP_OUT	}	"
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
