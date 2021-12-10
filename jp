@@ -726,6 +726,25 @@ jp_def () {
   eval $"$name () { JP_ARGS_LEN=\$((JP_ARGS_LEN+$argc-1));((JP_ARGS_IDX--));JP_ARGS=(\${JP_ARGS[@]:0:\$JP_ARGS_IDX} $args \${JP_ARGS[@]:\$((JP_ARGS_IDX+1))}); }"
 }
 
+jp_ex () {
+  jp_pop || return
+  jp__is_int || jp_error "ex requires an arg count as an integer" || return
+  [ $JP_OUT -gt 0 ] || jp_error "ex arg count must be positive" || return
+  local argc=$JP_OUT args=
+  while (( argc-- ));do
+    jp_pop || return
+    args="${JP_OUT:1:-1} $args"
+  done
+  while IFS= read -r;do
+    jp_eval "\"$REPLY\""
+  done < <(eval ${args[@]})
+}
+
+jp_fromstr () {
+  jp_pop || return
+  jp__is_str || jp_error "fromstr requires a string arg" || return
+  jp_eval "${JP_OUT:1:-1}" # strip quotes
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
