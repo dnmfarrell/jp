@@ -495,10 +495,10 @@ jp__test () {
       fi
       return
     fi
-  elif jp__is_num;then
+  elif jp__is_int;then
     left="$JP_OUT"
     jp_pop || return
-    if jp__is_num;then
+    if jp__is_int;then
       if [ $left $num_op $JP_OUT ];then
         jp_push "true	"
       else
@@ -536,6 +536,10 @@ jp__is_str () {
 
 jp__is_num () {
   [[ ${JP_OUT:0:1} =~ [[:digit:]-] ]]
+}
+
+jp__is_int () {
+  [[ "$JP_OUT" =~ ^-?[0-9]+$ ]]
 }
 
 jp_eq () {
@@ -582,7 +586,7 @@ jp_match () {
       jp_push "false	"
     fi
   else
-    jp_error "match only matches strings and ints" || return
+    jp_error "match only matches strings and nums" || return
   fi
 }
 
