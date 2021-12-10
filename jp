@@ -836,12 +836,39 @@ jp_run () {
 jp_load_macros () {
   [ -f "$1" ] || jp_error "cannot find macro file: $1" || return
   [ -r "$1" ] || jp_error "cannot open macro file for reading: $1" || return
-  while IFS=" " read -r -a JP_ARGS;do
+  while IFS= read -r;do
+    jp_macro_to_args "$REPLY" || return
     JP_ARGS_LEN=${#JP_ARGS[@]}
     JP_ARGS_IDX=0
     jp_next_arg || return
     jp_eval "$JP_ARG" || return
   done < "$1"
+}
+
+# this silly function is needed to avoid splitting strings on whitespace
+jp_macro_to_args () {
+  local del=" " quo='"' esc="\\" len="${#1}" idx=0 cnt=0 word=
+  JP_ARGS=()
+  while (( idx <= len ));do
+    c="${1:$idx:1}"
+    (( idx++ ))
+    if [ $cnt -eq 0 ];then
+      if [ -z "$c" ] || [ "$c" = "$del" ];then
+        if [ -n "$word" ];then
+          JP_ARGS+=("$word")
+          word=
+        fi
+        continue
+      elif [ "$c" = "$quo" ];then
+        (( cnt++ ))
+      fi
+    elif [ -z "$c" ];then
+      jp_error "found unterminated string in macro: col:$idx, $1" || return
+    elif [ "$c" = "$quo" ];then
+      [ "${word: -1}" != "$esc" ] && (( cnt-- ))
+    fi
+    word+="$c"
+  done
 }
 
 jp_main () {
