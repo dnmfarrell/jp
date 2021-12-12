@@ -12,7 +12,7 @@ Options
 -------
 
     -i  set indent value (default is two spaces)
-    -m  load macros from a file
+    -m  load macros from a file (option can be given multiple times)
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
     -s  silent, disable print step
