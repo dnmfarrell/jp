@@ -35,11 +35,13 @@ Unlike some parsers, jp preserves object key order, and permits duplicate keys i
 
 Transform
 ---------
-If jp received any input and it was successfully parsed into tokens, they will be in a single item on top of the stack. The transform stage is an opportunity to manipulate the stack with programming via args. jp processes its args at least once; when it receives JSON-per-line input it will process its args for each line. E.g: the JSON string `"customer"` is pushed onto the stack which is collected into an array, for each line of input:
+If jp received any input and it was successfully parsed into tokens, they will be in a single item on Top Of Stack ("TOS"). The transform stage is an opportunity to manipulate the stack with programming via args. jp processes its args at least once; when it receives JSON-per-line input it will process its args for each line. E.g: this program receives a stream of incrementing numbers and builds a JSON array containing the number and whether or not it is greater than 2:
 
-    echo -e $'1\n2' | jp -P '"customer"' .collect
-    ["customer",1]
-    ["customer",2]
+    echo -e '1\n2\n3' | jp -P .dup 2 .gt [] .swap .cons .swap .cons
+    [1,false]
+    [2,false]
+    [3,true]
+
 
 ### Stack Control
 
@@ -85,6 +87,30 @@ Rotates the third stack item into first place.
     3
     2
 
+### Reflection
+
+#### .count
+Pushes a count of items on the stack.
+
+    jp 1 1 1 .count
+    3
+    1
+    1
+    1
+
+#### .empty
+This macro pushes true if the stack is empty, or false otherwise.
+
+    jp -m macros.jp .empty
+    true
+
+#### .is_obj, .is_arr, .is_bool, .is_str, ._is_num, .is_null
+Inspects TOS and pushes true or false.
+
+    jp -P [1,2,3] .is_arr
+    true
+    [1,2,3]
+
 ### Control Flow
 
 #### .do .. .done
@@ -106,7 +132,6 @@ Empty do blocks can be used as a "no op" with `.map` to unroll an object or arra
     {"job":"villain"}
     {"email":"lex@example.com"}
     {"name":"Lex Luthor"}
-
 
 #### .if [.else]
 Pops the top stack item and if it is true, evaluates the next statement, otherwise ignoring it. Optionally accepts an else clause.
@@ -142,7 +167,6 @@ Returns the conjunction of the top two stack items.
     jp -m macros.jp true false .and
     false
 
-
 #### .or
 Returns the disjunction of the top two stack items.
 
@@ -173,7 +197,6 @@ N.B. Bash's test function does not support "greater-than-or-equal" or "less-than
 
 #### .match
 Pops the top stack item which should be a string containing an extended posix pattern. Pops the next item (which should be a string or number) compares them, pushing true/false onto the stack.
-
 
     jp 5 '"^[0-9]+$"' .match
     true

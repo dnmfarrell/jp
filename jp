@@ -439,15 +439,14 @@ jp_v () {
 }
 
 jp_concat () {
-  jp_pop || return
   local accum
   if jp__is_str;then
-    accum="\"${JP_OUT:1:$(("${#JP_OUT}"-2))}"
     jp_pop || return
+    accum="\"${JP_OUT:1:$(("${#JP_OUT}"-2))}"
     jp__is_str || jp_error "concat expected a string but saw '${JP_OUT:0:1}'" || return
+    jp_pop || return
     accum+="${JP_OUT:1:$(("${#JP_OUT}"-2))}\"	"
   else
-    accum="${JP_OUT:0:-1}"
     if jp__is_arr;then
       jp_pop || return
       jp__is_arr || jp_error "concat expected an array but saw '${JP_OUT:0:1}'" || return
@@ -457,6 +456,8 @@ jp_concat () {
     else
       jp_error "can only concat strings, arrays or objects" || return
     fi
+    accum="${JP_OUT:0:-1}"
+    jp_pop || return
     if [ "${#accum}" -eq 2 ];then # empty
       accum="$JP_OUT	"
     elif [ "${#JP_OUT}" -eq 3 ];then # empty
@@ -480,15 +481,15 @@ jp_collect () {
 }
 
 jp__test () {
-  local op_name="$1" num_op="$2" str_op="$3" left=
-  jp_pop || return
+  local op_name="$1" num_op="$2" str_op="$3" right=
   if jp__is_str;then
-    left="$JP_OUT"
     jp_pop || return
+    right="$JP_OUT"
     if [ -z $str_op ];then
       jp_error "$op_name does not work on strings" || return
     elif jp__is_str;then
-      if [ "$left" $str_op "$JP_OUT" ];then
+      jp_pop || return
+      if [ "$JP_OUT" $str_op "$right" ];then
         jp_push "true	"
       else
         jp_push "false	"
@@ -496,10 +497,11 @@ jp__test () {
       return
     fi
   elif jp__is_int;then
-    left="$JP_OUT"
     jp_pop || return
+    right="$JP_OUT"
     if jp__is_int;then
-      if [ $left $num_op $JP_OUT ];then
+      jp_pop || return
+      if [ $JP_OUT $num_op $right ];then
         jp_push "true	"
       else
         jp_push "false	"
@@ -510,12 +512,65 @@ jp__test () {
   jp_error "$op_name only works on pairs of strings or integers" || return
 }
 
+jp_count () {
+  jp_push "$JP_STACKSIZE	"
+}
+
+jp_is_obj () {
+  if jp__is_obj;then
+    jp_push 'true	'
+  else
+    jp_push 'false	'
+  fi
+}
+
+jp_is_arr () {
+  if jp__is_arr;then
+    jp_push 'true	'
+  else
+    jp_push 'false	'
+  fi
+
+}
+
+jp_is_bool () {
+  if jp__is_bool;then
+    jp_push 'true	'
+  else
+    jp_push 'false	'
+  fi
+}
+
+jp_is_str () {
+  if jp__is_str;then
+    jp_push 'true	'
+  else
+    jp_push 'false	'
+  fi
+}
+
+jp_is_num () {
+  if jp__is_num;then
+    jp_push 'true	'
+  else
+    jp_push 'false	'
+  fi
+}
+
+jp_is_null () {
+  if jp__is_null;then
+    jp_push 'true	'
+  else
+    jp_push 'false	'
+  fi
+}
+
 jp__is_obj () {
-  [ "${JP_OUT:0:1}" = '{' ]
+  [ -n "$JP_STACK" ]&&[ "${JP_STACK:0:1}" = '{' ]
 }
 
 jp__is_arr () {
-  [ "${JP_OUT:0:1}" = '[' ]
+  [ -n "$JP_STACK" ]&&[ "${JP_STACK:0:1}" = '[' ]
 }
 
 jp__is_bool () {
@@ -523,23 +578,27 @@ jp__is_bool () {
 }
 
 jp__is_false () {
-  [ ${JP_OUT:0:1} = 'f' ]
+  [ -n "$JP_STACK" ]&&[ "${JP_STACK:0:1}" = 'f' ]
 }
 
 jp__is_true () {
-  [ ${JP_OUT:0:1} = 't' ]
+  [ -n "$JP_STACK" ]&&[ "${JP_STACK:0:1}" = 't' ]
 }
 
 jp__is_str () {
-  [ ${JP_OUT:0:1} = '"' ]
+  [ -n "$JP_STACK" ]&&[ "${JP_STACK:0:1}" = '"' ]
 }
 
 jp__is_num () {
-  [[ ${JP_OUT:0:1} =~ [[:digit:]-] ]]
+  [ -n "$JP_STACK" ]&&[[ ${JP_STACK:0:1} =~ [[:digit:]-] ]]
 }
 
 jp__is_int () {
-  [[ "$JP_OUT" =~ ^-?[0-9]+$ ]]
+  [ -n "$JP_STACK" ]&&[[ "${JP_STACK%%$'\t\n'*}" =~ ^-?[0-9]+$ ]]
+}
+
+jp__is_null () {
+  [ -n "$JP_STACK" ]&&[ "${JP_STACK:0:1}" = 'n' ]
 }
 
 jp_eq () {
@@ -567,19 +626,20 @@ jp_le () {
 }
 
 jp_match () {
-  jp_pop || return
-  if [ ${JP_OUT:0:1} != '"' ];then
+  if ! jp__is_str;then
     jp_error "match requires a string as a pattern" || return
   fi
-  local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}"
   jp_pop || return
+  local operand="${JP_OUT:1:$(( ${#JP_OUT} -2 ))}"
   if jp__is_str;then # remove "
+    jp_pop || return
     if [[ "${JP_OUT:1:$(( ${#JP_OUT} -2 ))}" =~ $operand ]];then
       jp_push "true	"
     else
       jp_push "false	"
     fi
   elif jp__is_num;then
+    jp_pop || return
     if [[ $JP_OUT =~ $operand ]];then
       jp_push "true	"
     else
@@ -601,14 +661,15 @@ jp__skip_next () {
 }
 
 jp_if () {
-  jp_pop || return
   if jp__is_false;then
+    jp_pop || return
     jp__skip_next || return
     jp_peek_arg
     if [ "$JP_PEEK" = '.else' ];then
       jp_next_arg || return
     fi
   elif jp__is_true;then
+    jp_pop || return
     jp_next_arg || return
     jp_eval "$JP_ARG"
     jp_peek_arg
@@ -638,8 +699,8 @@ jp_done () {
 }
 
 jp_map () {
-  jp_pop || return
   if jp__is_obj;then
+    jp_pop || return
     if [ "${#JP_OUT}" -eq 3 ]; then # skip next expression
       jp_push "false	"
       jp_if
@@ -668,6 +729,7 @@ jp_map () {
       fi
     done
   elif jp__is_arr;then
+    jp_pop || return
     if [ "${#JP_OUT}" -eq 3 ]; then # skip next expression
       jp_push "false	"
       jp_if
@@ -695,8 +757,8 @@ jp_map () {
 jp_cons () {
   jp_pop || return
   local val="$JP_OUT"
-  jp_pop || return
   jp__is_arr || jp_error "can only cons a value to an array" || return
+  jp_pop || return
   if [ "${#JP_OUT}" -eq 3 ];then # empty
     jp_push "[	$val	]	"
   else
@@ -735,8 +797,8 @@ jp_nq () {
 }
 
 jp_ex () {
-  jp_pop || return
   jp__is_int || jp_error "ex requires an arg count as an integer" || return
+  jp_pop || return
   [ $JP_OUT -gt 0 ] || jp_error "ex arg count must be positive" || return
   local argc=$JP_OUT args=
   while (( argc-- ));do
@@ -749,14 +811,14 @@ jp_ex () {
 }
 
 jp_fromstr () {
-  jp_pop || return
   jp__is_str || jp_error "fromstr requires a string arg" || return
+  jp_pop || return
   jp_eval "${JP_OUT:1:-1}" # strip quotes
 }
 
 jp_pair () {
-  jp_pop || return
   jp__is_str || jp_error "pair requires a string arg" || return
+  jp_pop || return
   local k="$JP_OUT"
   jp_pop || return
   jp_push "{	$k	:	$JP_OUT	}	"

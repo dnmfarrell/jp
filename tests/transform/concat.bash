@@ -9,7 +9,7 @@ else
   fail "concat invalid type does not error"
 fi
 
-$(echo '{}' | ./jp '[]' .concat 2>/dev/null)
+$(./jp '{}' '[]' .concat 2>/dev/null)
 if [ $? -ne 0 ];then
   pass "concat incompatible collection types errors"
 else
