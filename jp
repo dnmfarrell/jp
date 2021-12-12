@@ -769,10 +769,9 @@ jp_cons () {
 jp_def () {
   jp_next_arg || return
   [ "${JP_ARG:0:1}" = '.' ] || jp_error "can only def names beginning with ." || return
-  local oname="$JP_ARG" name="jp_${JP_ARG:1}" args argc=1 nestcnt=0
+  local name="jp_${JP_ARG:1}" args argc=1 nestcnt=0
   jp_next_arg || return
   args+="'$JP_ARG'	"
-  [ "$JP_ARG" != "$oname" ] || jp_error ".def $oname recursive defs are not allowed" || return
   if [ "$JP_ARG" = '.do' ];then
     (( nestcnt++ ))
     while [ $nestcnt -gt 0 ];do
@@ -781,7 +780,6 @@ jp_def () {
       ((argc++))
       [ "$JP_ARG" = '.do' ] && ((nestcnt++))
       [ "$JP_ARG" = '.done' ] && ((nestcnt--))
-      [ "$JP_ARG" != "$oname" ] || jp_error ".def $oname recursive defs are not allowed" || return
     done
   fi
   type -t $name &>/dev/null && return # don't redefine functions

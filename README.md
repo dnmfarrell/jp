@@ -52,27 +52,27 @@ Any JSON literal will be parsed and pushed onto the stack, here's a string:
     "howdy"
 
 #### .pop
-Pops the top item off the stack, deleting it.
+Pops the the stack, deleting TOS.
 
     jp 1 .pop
     # no output as stack is empty
 
 #### .swap
-Swaps the top two items of the stack with each other.
+Swaps the top two stack items with each other.
 
     jp '"Hello"' '"World!"' .swap
     "Hello"
     "World!"
 
 #### .dup
-Copies the value on the top of the stack making it the top two items.
+Copies TOS making it the top two items.
 
     jp '"Hello"' .dup
     "Hello"
     "Hello"
 
 #### .over
-Copies the second stack item onto the top of the stack, "over" the first.
+Copies and pushes the second stack item ("over" the first).
 
     jp 1 2 .over
     1
@@ -134,7 +134,7 @@ Empty do blocks can be used as a "no op" with `.map` to unroll an object or arra
     {"name":"Lex Luthor"}
 
 #### .if [.else]
-Pops the top stack item and if it is true, evaluates the next statement, otherwise ignoring it. Optionally accepts an else clause.
+Pops TOS and if it is true, evaluates the next statement, otherwise ignoring it. Optionally accepts an else clause.
 
     jp true .if 1
     1
@@ -174,7 +174,7 @@ Returns the disjunction of the top two stack items.
     true
 
 #### .not
-Returns the logical complement (negation) of the top stack item.
+Returns the logical complement (negation) of TOS.
 
     jp -m macros.jp true .not
     false
@@ -196,7 +196,7 @@ Pops the top two stack items and pushes true/false depending on the result of th
 N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons.
 
 #### .match
-Pops the top stack item which should be a string containing an extended posix pattern. Pops the next item (which should be a string or number) compares them, pushing true/false onto the stack.
+Pops TOS which should be a string containing an extended posix pattern. Pops the next item (which should be a string or number) compares them, pushing true/false onto the stack.
 
     jp 5 '"^[0-9]+$"' .match
     true
@@ -239,17 +239,6 @@ Can be used with `.map` to reverse an array:
 
 Indeed this is the definition of the `.reva` macro.
 
-#### .collect
-Creates a new array, pops every stack item appending it to the array and pushes the array.
-
-    jp '"octocat"' '"atom"' '"electron"' '"api"' .collect
-    [
-      "api",
-      "electron",
-      "atom",
-      "octocat"
-    ]
-
 #### .fromstr
 Pops a string off the stack, strips its outer quotes and re-parses it as JSON. This can be used to cast a valid JSON string into any other JSON type. As `.ex` command output is always treated as strings, the two commands often go together:
 
@@ -263,7 +252,7 @@ Pops an object off the stack, pushing the first key back on the stack. See also 
     "a"
 
 #### .pair
-Pops the top item off the stack, which must be a string. Pops the next item as its value and pushes an object with a single key/value pair back onto the stack.
+Pops TOS, which must be a string. Pops the next item as its value and pushes an object with a single key/value pair back onto the stack.
 
     jp 123 '"a"' .pair
     {
@@ -294,12 +283,21 @@ Pops an object off the stack, pushing the first value back on the stack. See als
 ### Programming
 
 #### .def
-Define a macro. Reads the next arg as the macro name (must begin with .). The following statement is used as the macro body. Whenever the name is encountered, it will be replaced with the macro body. Recursive macros are not supported, but macro bodies can include other macros (just not themselves). Macros cannot be changed and redefinitions are ignored.
+Define a macro. Reads the next arg as the macro name (must begin with .). The following statement is used as the macro body. Whenever the name is encountered, it will be replaced with the macro body. Once defined, macros cannot be changed and redefinitions are ignored.
 
     jp .def .abc .do '"a"' '"b"' '"c"' .done .abc
     "c"
     "b"
     "a"
+
+Because macros are lazily evaluated, they can recurse. This macro cons every stack item into an array on TOS:
+
+    jp .def .consall .do .count 1 .gt .if .do .swap .cons .col .done .done 1 2 3 [] .consall
+    [
+      1,
+      2,
+      3
+    ]
 
 You can load a file of macro definitions by providing the `-m` option. Macro files are loaded line-by-line, so macro definitions cannot contain newlines. This repo has an example macros file, `macros.jp`:
 
@@ -307,12 +305,14 @@ You can load a file of macro definitions by providing the `-m` option. Macro fil
     jp -m macros.jp '{"a":1}' '"a"' .exists
     true
 
+You can load multiple macro files by repeating the `-m` option.
+
 Two advantages of defining macros in a file: first, they are only parsed once per jp process and second, arguments do not need to be quoted like they do on the command line:
 
     .def .abc .do "a" "b" "c" .done
 
 #### .ex
-Calls another program, stringifies its output and pushes it onto the stack. Pops the number of args to collect off the stack, and then pops that many args, building a command string by stripping surrounding quotes and prepending the result to the command string. Evals the command string and stringifies the output, pushing it back onto the stack.
+Executes another program, stringifies its output and pushes it onto the stack. Pops the number of args to collect off the stack, and then pops that many args, building a command string by stripping surrounding quotes and prepending the result to the command string. Evals the command string and stringifies the output, pushing it back onto the stack.
 
     jp '"date"' 1 .ex
     "Thu 09 Dec 2021 01:54:08 PM EST"
