@@ -47,4 +47,12 @@ else
   fail $"v {\"abc\":1} returns: $abcesc"
 fi
 
+nest=$(./jp '{"nest":[1,[2,[3]]]}' .v)
+if [ "$nest" = '[1,[2,[3]]]' ];then
+  pass 'v {"nest":[1,[2,[3]]]} returns 1'
+else
+  printf -v nestesc "%q" "$nest"
+  fail $"v {\"nest\":[1,[2,[3]]]} returns: $nestesc"
+fi
+
 end

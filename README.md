@@ -245,6 +245,12 @@ Pops a string off the stack, strips its outer quotes and re-parses it as JSON. T
     jp '"date"' '"+%s"' 2 .ex .fromstr
     1639074686
 
+#### .h
+Pops an array off the stack, pushing the first element (head). To get the remainder of the array, see `.t`
+
+  jp [1,2,3] .h
+  1
+
 #### .k
 Pops an object off the stack, pushing the first key back on the stack. See also `.v`.
 
@@ -258,6 +264,15 @@ Pops TOS, which must be a string. Pops the next item as its value and pushes an 
     {
       "a": 123
     }
+
+#### .t
+Pops an array off the stack, removes the first element (head) and pushes the remainder (tail). To get the head of the array, see `.h`
+
+  jp [1,2,3] .t
+  [
+    2,
+    3
+  ]
 
 #### .uniq
 Pops an object off the stack, pushing the object back with any duplicate keys removed. The first key wins:

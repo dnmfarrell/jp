@@ -412,8 +412,8 @@ jp_k () {
 }
 
 jp_v () {
-  jp_pop || return
-  if [ "${JP_OUT:0:1}" = '{' ];then
+  if jp__is_obj;then
+    jp_pop || return
     if [ "${#JP_OUT}" -eq 3 ];then
       jp_error "v doesn't work on an empty object" || return
     fi
@@ -435,6 +435,46 @@ jp_v () {
     done
   else
     jp_error "v only works on objects" || return
+  fi
+}
+
+jp_h () {
+  if jp__is_arr;then
+    jp_pop || return
+    if [ "${#JP_OUT}" -eq 3 ];then
+      jp_error "h doesn't work on an empty array" || return
+    fi
+    local nestcnt=0 rv=
+    for t in ${JP_OUT:2:-2};do
+      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+      rv+="$t	"
+      if [ $nestcnt -eq 0 ];then
+        jp_push "$rv"
+        return
+      fi
+    done
+  else
+    jp_error "h only works on arrays" || return
+  fi
+}
+
+jp_t () {
+  if jp__is_arr;then
+    jp_pop || return
+    if [ "${#JP_OUT}" -eq 3 ];then
+      jp_error "t doesn't work on an empty array" || return
+    fi
+    local nestcnt=0 rv='[	' i=0
+    for t in ${JP_OUT:2:-2};do
+      [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+      [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+      (( i > 1 )) && rv+="$t	"
+      [ $nestcnt -eq 0 ] && (( i++ ))
+    done
+    jp_push "$rv]	"
+  else
+    jp_error "t only works on arrays" || return
   fi
 }
 
