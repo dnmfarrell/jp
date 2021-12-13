@@ -871,7 +871,10 @@ jp_prettyprint () {
   local linebuf=
   for token in $JP_OUT;do
     case $token in
-      [\[{]) if [[ "$linebuf" == *[^[:blank:]]* ]];then
+      [\[{]) if [ "${linebuf: -1}" = '[' ];then
+               echo -E "$linebuf"
+               linebuf="$indent$token"
+             elif [[ "$linebuf" == *[^[:blank:]]* ]];then
                linebuf="$linebuf$token"
              else
                linebuf="$indent$token"
