@@ -332,7 +332,7 @@ Define a macro. Reads the next arg as the macro name (must begin with .). The fo
 
 Because macros are lazily evaluated, they can recurse. This macro cons every stack item into an array on TOS:
 
-    jp .def .consall .do .count 1 .gt .if .do .swap .cons .col .done .done 1 2 3 [] .consall
+    jp .def .consall .do .count 1 .gt .if .do .swap .cons .consall .done .done 1 2 3 [] .consall
     [
       1,
       2,
