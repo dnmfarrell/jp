@@ -10,17 +10,47 @@ JP_NL='
 JP_CR=''
 JP_TAB='	'
 IFS="$JP_TAB" # tokens are tab delimited
+JP_SEP=$'\t\n'
+JP_STACKSIZE=0
 
 jp_error () {
   echo "Error: $1 at line $JP_LINE, column $JP_IDX" >&2
   return 1
 }
 
-jp_trace () { # bash only
-  # ignore non-jp functions and duplicate DEBUG signals
-  if [[ "$1" == "jp_"* ]] && [[ "$1" != "${FUNCNAME[1]}" ]]; then
-    printf "%s\t%s\n" "$EPOCHREALTIME" "$1" >&2
+jp_debug () {
+  if [ "${1:0:3}" = "jp_" ]&&[ "$1" != "${FUNCNAME[1]}" ];then
+    [ $JP_DEBUG_SKIP ] && [ "$1" != "jp_next_arg" ]&&return
+    JP_DEBUG_SKIP=
+    echo "$1" >&2
+    jp_dump
+    while read -s -n 1 key;do
+      case "$key" in
+        "s") break;;
+        "n") JP_DEBUG_SKIP=1;break;;
+        "q") trap '' DEBUG;break;;
+          *) echo "$key has no effect, try one of: s, n, q"
+      esac
+    done < /dev/tty
   fi
+}
+
+jp_dump () {
+  local stack="$JP_STACK" i=1 out= label='TOS'
+  while :;do
+    out="${stack%%$JP_SEP*}"
+    [ "$out" ] || out='(empty)'
+    stack="${stack#*$JP_SEP}"
+    echo -en "$label\t" >&2
+    for t in $out;do
+      echo -nE "$t" >&2
+    done
+    echo >&2
+    (( i++ ))
+    (( i > JP_STACKSIZE )) && break
+    printf -v label "%3d" "$i" >&2
+  done
+  echo '---' >&2
 }
 
 # BEGIN PARSE FUNCTIONS
@@ -151,9 +181,9 @@ jp_number () {
     if [[ "$JP_C" == [[:digit:]] ]];then
       num="$num$JP_C"
     elif [ "$JP_C" = . ];then
-      if [ "$seendot" ]; then
+      if [ "$seendot" ];then
         jp_error "number has too many dots in it: $num$JP_C" || return
-      elif [ "$seenexp" ]; then
+      elif [ "$seenexp" ];then
         jp_error "exponents cannot contain dots: $num$JP_C" || return
       else
         num="$num$JP_C"
@@ -163,7 +193,7 @@ jp_number () {
         continue
       fi
     elif [[ $JP_C == [Ee] ]];then
-      if [ $seenexp ]; then
+      if [ $seenexp ];then
         jp_error "number has too many Es in it: $num$JP_C" || return
       fi
       seenexp=1
@@ -315,9 +345,8 @@ jp_pop () {
     JP_OUT="${JP_STACK:0:-2}"
     JP_STACK=
   else
-    local sep=$'\t\n'
-    JP_OUT="${JP_STACK%%$sep*}"
-    JP_STACK="${JP_STACK#*$sep}"
+    JP_OUT="${JP_STACK%%$JP_SEP*}"
+    JP_STACK="${JP_STACK#*$JP_SEP}"
   fi
   JP_STACKSIZE=$(( JP_STACKSIZE - 1 ))
 }
@@ -358,8 +387,8 @@ jp_rot () {
 }
 
 jp_uniq () {
-  jp_pop || return
-  if [ "${JP_OUT:0:1}" = '{' ];then
+  if jp__is_obj;then
+    jp_pop || return
     if [ "${#JP_OUT}" -eq 3 ];then
       jp_push "$JP_OUT	"
       return
@@ -397,8 +426,8 @@ jp_uniq () {
 }
 
 jp_k () {
-  jp_pop || return
-  if [ "${JP_OUT:0:1}" = '{' ];then
+  if jp__is_obj;then
+    jp_pop || return
     if [ "${#JP_OUT}" -eq 3 ];then
       jp_error "k doesn't work on an empty object" || return
     fi
@@ -882,53 +911,58 @@ jp_pair () {
 
 # BEGIN PRINT FUNCTIONS
 jp_prettyprint () {
-  local indentchars="$1"
-  local indentlen=${#indentchars}
-  local indent=
-  local linebuf=
-  for token in $JP_OUT;do
-    case $token in
-      [\[{]) if [ "${linebuf: -1}" = '[' ];then
-               echo -E "$linebuf"
-               linebuf="$indent$token"
-             elif [[ "$linebuf" == *[^[:blank:]]* ]];then
-               linebuf="$linebuf$token"
-             else
-               linebuf="$indent$token"
-             fi
-             indent="$indent$indentchars"
-             ;;
-      [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}"
-             if [[ "$linebuf" == *[^[:blank:]] ]];then
-               if [[ "${linebuf:$((${#linebuf}-1)):1}" == [\[{] ]];then
-                 linebuf="$linebuf$token"
-               else
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
+    local indentlen=${#JP_INDENT}
+    local indent=
+    local linebuf=
+    for token in $JP_OUT;do
+      case $token in
+        [\[{]) if [ "${linebuf: -1}" = '[' ];then
                  echo -E "$linebuf"
                  linebuf="$indent$token"
+               elif [[ "$linebuf" == *[^[:blank:]]* ]];then
+                 linebuf="$linebuf$token"
+               else
+                 linebuf="$indent$token"
                fi
-             else
-               linebuf="$indent$token"
-             fi
-             ;;
-        ',') echo -E "$linebuf,"
-             linebuf="$indent";;
-        ':') linebuf="$linebuf: ";;
-          *) if [[ "$linebuf" == *[^[:blank:]] ]];then
-               echo -E "$linebuf"
-               linebuf="$indent$token"
-             else
-                linebuf="$linebuf$token"
-             fi
-    esac
+               indent="$indent$JP_INDENT"
+               ;;
+        [\]}]) [[ -n "$indent" ]] && indent="${indent:$indentlen}"
+               if [[ "$linebuf" == *[^[:blank:]] ]];then
+                 if [[ "${linebuf:$((${#linebuf}-1)):1}" == [\[{] ]];then
+                   linebuf="$linebuf$token"
+                 else
+                   echo -E "$linebuf"
+                   linebuf="$indent$token"
+                 fi
+               else
+                 linebuf="$indent$token"
+               fi
+               ;;
+          ',') echo -E "$linebuf,"
+               linebuf="$indent";;
+          ':') linebuf="$linebuf: ";;
+            *) if [[ "$linebuf" == *[^[:blank:]] ]];then
+                 echo -E "$linebuf"
+                 linebuf="$indent$token"
+               else
+                  linebuf="$linebuf$token"
+               fi
+      esac
+    done
+    [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
   done
-  [[ "$linebuf" == *[^[:blank:]]* ]] && echo -E "$linebuf"
 }
 
 jp_plainprint () {
-  for t in $JP_OUT;do
-    echo -nE "$t"
+  while [ $JP_STACKSIZE -gt 0 ];do
+    jp_pop || return
+    for t in $JP_OUT;do
+      echo -nE "$t"
+    done
+    echo
   done
-  echo
 }
 # END PRINT FUNCTIONS
 
@@ -970,6 +1004,11 @@ jp_run () {
   fi
 
   # transform
+  if [ $JP_DEBUG ];then
+    echo -e "DEBUG: \033[1ms\033[0m:step, \033[1mn\033[0m:next arg, \033[1mq\033[0m:quit"
+    trap 'jp_debug "$BASH_COMMAND"' DEBUG
+    set -T
+  fi
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
   while (( JP_ARGS_IDX < JP_ARGS_LEN ));do
     jp_next_arg || return
@@ -977,17 +1016,15 @@ jp_run () {
   done
   JP_IDX="$in_idx" # restore stdin parse state
   JP_LINE="$in_line"
+  [ $JP_DEBUG ]&&trap '' DEBUG
 
   # print
   [ $JP_SILENT ] && return 0
-  while [ $JP_STACKSIZE -gt 0 ];do
-    jp_pop || return
-    if [ $JP_PRETTY ];then
-      jp_prettyprint "$JP_INDENT"
-    else
-      jp_plainprint
-    fi
-  done
+  if [ $JP_PRETTY ];then
+    jp_prettyprint
+  else
+    jp_plainprint
+  fi
   return 0
 }
 
@@ -1033,11 +1070,11 @@ jp_main () {
   JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
   [ -t 0 ] || JP_INPUT=1  # read input if being piped
-  while getopts "pPsti:m:" opt; do
+  while getopts "dpPsi:m:" opt;do
     case "$opt" in
+      'd') JP_DEBUG=1;;
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
-      't') trap '(jp_trace "${BASH_COMMAND%% *}");' DEBUG; set -T;;
       'i') JP_INDENT="$OPTARG";;
       's') JP_SILENT=1;;
       'm') jp_load_macros "$OPTARG"

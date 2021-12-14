@@ -11,12 +11,12 @@ A JSON processor: it takes a stream of JSON text, parses it onto a stack, option
 Options
 -------
 
+    -d  launch transform debugger
     -i  set indent value (default is two spaces)
     -m  load macros from a file (option can be given multiple times)
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
     -s  silent, disable print step
-    -t  trace mode
 
 
 Parse
@@ -351,6 +351,24 @@ Two advantages of defining macros in a file: first, they are only parsed once pe
 
     .def .abc .do "a" "b" "c" .done
 
+#### .dump
+Prints the contents of the stack to stderr, starting with `TOS` and ending with `---`:
+
+    jp [1,2,3] false null '"foo"' .dump 1>/dev/null
+    TOS     "foo"
+      2     null
+      3     false
+      4     [1,2,3]
+    ---
+
+Dump will indicate when the stack is empty:
+
+    jp .dump
+    TOS     (empty)
+    ---
+
+Dump can serve as a simple debugging aid for programs, like print statements for other languages. Debug mode (option `-d`) will call `.dump` every step of a program.
+
 #### .ex
 Executes another program, stringifies its output and pushes it onto the stack. Pops the number of args to collect off the stack, and then pops that many args, building a command string by stripping surrounding quotes and prepending the result to the command string. Evals the command string and stringifies the output, pushing it back onto the stack.
 
@@ -418,6 +436,17 @@ N.B. errors are emitted on stderr, to silence them, redirect:
 
     jp -s [1,2,] 2>/dev/null
     # no error output
+
+#### .dump
+Prints the contents of the stack to stderr. This can be used to debug programs.
+
+    jp [1,2,3] false null '"foo"' .dump 1>/dev/null
+    TOS     "foo"
+      2     null
+      3     false
+      4     [1,2,3]
+    ---
+
 
 Use jp as a library
 -------------------
