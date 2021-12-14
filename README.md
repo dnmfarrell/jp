@@ -243,7 +243,7 @@ Can be used with `.map` to reverse an array:
     jp -P [1,2,3] [] .swap .map .cons
     [3,2,1]
 
-Indeed this is the definition of the `.reva` macro.
+Indeed this is the definition of the `.revarr` macro.
 
 #### .fromstr
 Pops a string off the stack, strips its outer quotes and re-parses it as JSON. This can be used to cast a valid JSON string into any other JSON type. As `.ex` command output is always treated as strings, the two commands often go together:
