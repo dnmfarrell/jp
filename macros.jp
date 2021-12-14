@@ -5,3 +5,8 @@
 .def .reva .do [] .swap .map .cons .done
 .def .revo .do {} .swap .map .concat .done
 .def .empty .do .count 0 .eq .done
+.def .ltarr .do [] .rot .rot .swap .map .do .over .over .swap .lt .if .do .rot .swap .cons .swap .done .else .pop .done .pop .reva .done
+.def .gtarr .do [] .rot .rot .swap .map .do .over .over .swap .gt .if .do .rot .swap .cons .swap .done .else .pop .done .pop .reva .done
+.def .eqarr .do [] .rot .rot .swap .map .do .over .over .swap .eq .if .do .rot .swap .cons .swap .done .else .pop .done .pop .done
+.def .ht .do .dup .t .swap .h .done
+.def .sort .do .dup .len 1 .gt .if .do .dup .dup .ht .dup [] .swap .cons .rot .rot .gtarr .sort .swap .concat .swap .ht .eqarr .concat .swap .ht .ltarr .sort .concat .done .done

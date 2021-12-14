@@ -438,6 +438,23 @@ jp_v () {
   fi
 }
 
+jp_len () {
+  if jp__is_arr;then
+    jp_pop || return
+    local nestcnt=0 i=0
+    if [ "${#JP_OUT}" -gt 3 ];then
+      for t in ${JP_OUT:2:-2};do
+        [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+        [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+        [ $nestcnt -eq 0 ]&&[ "$t" != ',' ]&&(( i++ ))
+      done
+    fi
+    jp_push "$i	"
+  else
+    jp_error "len only works on arrays" || return
+  fi
+}
+
 jp_h () {
   if jp__is_arr;then
     jp_pop || return
@@ -483,16 +500,16 @@ jp_concat () {
   if jp__is_str;then
     jp_pop || return
     accum="\"${JP_OUT:1:$(("${#JP_OUT}"-2))}"
-    jp__is_str || jp_error "concat expected a string but saw '${JP_OUT:0:1}'" || return
+    jp__is_str || jp_error "concat expected a string but saw '${JP_STACK:0:1}'" || return
     jp_pop || return
     accum+="${JP_OUT:1:$(("${#JP_OUT}"-2))}\"	"
   else
     if jp__is_arr;then
       jp_pop || return
-      jp__is_arr || jp_error "concat expected an array but saw '${JP_OUT:0:1}'" || return
+      jp__is_arr || jp_error "concat expected an array but saw '${JP_STACK:0:1}'" || return
     elif jp__is_obj;then
       jp_pop || return
-      jp__is_obj || jp_error "concat expected an object but saw '${JP_OUT:0:1}'" || return
+      jp__is_obj || jp_error "concat expected an object but saw '${JP_STACK:0:1}'" || return
     else
       jp_error "can only concat strings, arrays or objects" || return
     fi

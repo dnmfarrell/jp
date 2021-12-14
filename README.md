@@ -104,7 +104,7 @@ This macro pushes true if the stack is empty, or false otherwise.
     jp -m macros.jp .empty
     true
 
-#### .is_obj, .is_arr, .is_bool, .is_str, ._is_num, .is_null
+#### .is_obj, .is_arr, .is_bool, .is_str, .is_num, .is_null
 Inspects TOS and pushes true or false.
 
     jp -P [1,2,3] .is_arr
@@ -195,6 +195,12 @@ Pops the top two stack items and pushes true/false depending on the result of th
 
 N.B. Bash's test function does not support "greater-than-or-equal" or "less-than-or-equal" string comparisons.
 
+#### .ltarr .eqarr .gtarr
+Filters an array by a comparison to a number or string (macro).
+
+    jp -m macros.jp -P [1,2,3,4,5] 3 .ltarr
+    [1,2]
+
 #### .match
 Pops TOS which should be a string containing an extended posix pattern. Pops the next item (which should be a string or number) compares them, pushing true/false onto the stack.
 
@@ -248,14 +254,27 @@ Pops a string off the stack, strips its outer quotes and re-parses it as JSON. T
 #### .h
 Pops an array off the stack, pushing the first element (head). To get the remainder of the array, see `.t`
 
-  jp [1,2,3] .h
-  1
+    jp [1,2,3] .h
+    1
+
+#### .ht
+This macro splits a TOS array into its head and tail:
+
+    jp -P -m macros.jp [1,2,3] .ht
+    1
+    [2,3]
 
 #### .k
 Pops an object off the stack, pushing the first key back on the stack. See also `.v`.
 
     jp '{"a":1,"b":2}' .k
     "a"
+
+#### .len
+Pops an array and pushes its length:
+
+    jp [1,2,3] .len
+    3
 
 #### .pair
 Pops TOS, which must be a string. Pops the next item as its value and pushes an object with a single key/value pair back onto the stack.
@@ -265,14 +284,20 @@ Pops TOS, which must be a string. Pops the next item as its value and pushes an 
       "a": 123
     }
 
+#### .sort
+This macro sorts an array in ascending order using quicksort. The array elements must all be strings or integers.
+
+    jp -m macros.jp -P '["h","a","e","p","r"]' .sort
+    ["a","e","h","p","r"]
+
 #### .t
 Pops an array off the stack, removes the first element (head) and pushes the remainder (tail). To get the head of the array, see `.h`
 
-  jp [1,2,3] .t
-  [
-    2,
-    3
-  ]
+    jp [1,2,3] .t
+    [
+      2,
+      3
+    ]
 
 #### .uniq
 Pops an object off the stack, pushing the object back with any duplicate keys removed. The first key wins:
