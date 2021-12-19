@@ -16,6 +16,7 @@ Options
     -m  load macros from a file (option can be given multiple times)
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
+    -r launch REPL
     -s  silent, disable print step
 
 
@@ -437,15 +438,18 @@ N.B. errors are emitted on stderr, to silence them, redirect:
     jp -s [1,2,] 2>/dev/null
     # no error output
 
-#### .dump
-Prints the contents of the stack to stderr. This can be used to debug programs.
+REPL
+----
+Run jp with the `-r` option to launch the REPL:
 
-    jp [1,2,3] false null '"foo"' .dump 1>/dev/null
-    TOS     "foo"
-      2     null
-      3     false
-      4     [1,2,3]
-    ---
+```
+Welcome to the jp REPL. Type commands and ENTER to evaluate, q quits.
+> 
+TOS     (empty)
+---
+```
+
+This interactive mode reads commands, evaluates them, updates the stack and prints the stack contents. Multiple commands can be entered on one line. This a good way to try out commands and see their effect on the stack.
 
 
 Use jp as a library

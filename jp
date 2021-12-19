@@ -14,7 +14,8 @@ JP_SEP=$'\t\n'
 JP_STACKSIZE=0
 
 jp_error () {
-  echo "Error: $1 at line $JP_LINE, column $JP_IDX" >&2
+  JP_ERROR=${1/"'$JP_NL'"/"''"}
+  echo "Error: $JP_ERROR at line $JP_LINE, column $JP_IDX" >&2
   return 1
 }
 
@@ -1070,17 +1071,22 @@ jp_main () {
   JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
   [ -t 0 ] || JP_INPUT=1  # read input if being piped
-  while getopts "dpPsi:m:" opt;do
+  while getopts "dpPrsi:m:" opt;do
     case "$opt" in
       'd') JP_DEBUG=1;;
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
       'i') JP_INDENT="$OPTARG";;
+      'r') JP_REPL=1;;
       's') JP_SILENT=1;;
       'm') jp_load_macros "$OPTARG"
     esac
   done
   shift $((OPTIND-1)) # reset options processing
+  if [ $JP_REPL ];then
+    jp_repl
+    exit
+  fi
   [ $JP_INPUT ] && jp_readline
   while :;do
     JP_ARGS=("$@")
@@ -1095,6 +1101,34 @@ jp_main () {
   done
   return 0
 }
+
+jp_repl () {
+  local msg="Welcome to the jp REPL. Type commands and ENTER to evaluate, q quits."
+  JP_ERROR="$msg"
+  jp_redraw
+  while IFS= read -r;do
+    if [ "$REPLY" = 'q' ];then
+      echo -ne "\e[H\e[JGoodbye.\n"
+      return
+    fi
+    jp_macro_to_args "$REPLY" || return
+    JP_ARGS_LEN=${#JP_ARGS[@]}
+    JP_ARGS_IDX=0
+    while (( JP_ARGS_IDX < JP_ARGS_LEN ));do
+      jp_next_arg || break
+      jp_eval "$JP_ARG" || break
+    done
+    jp_redraw
+    JP_ERROR="$msg"
+  done
+}
+
+jp_redraw () {
+  echo -en '\e[H\e[J\e[3H'
+  jp_dump
+  echo -en "\e[H$JP_ERROR\n> "
+}
+
 JP_SOURCED=0
 [ $0 != "$BASH_SOURCE" ] && JP_SOURCED=1
 [ $JP_SOURCED -eq 0 ] && jp_main "$@"
