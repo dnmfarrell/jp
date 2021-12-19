@@ -1106,7 +1106,7 @@ jp_repl () {
   local msg="Welcome to the jp REPL. Type commands and ENTER to evaluate, q quits."
   JP_ERROR="$msg"
   jp_redraw
-  while IFS= read -r;do
+  while IFS= read -e -p '> ' -r;do
     if [ "$REPLY" = 'q' ];then
       echo -ne "\e[H\e[JGoodbye.\n"
       return
@@ -1126,7 +1126,7 @@ jp_repl () {
 jp_redraw () {
   echo -en '\e[H\e[J\e[3H'
   jp_dump
-  echo -en "\e[H$JP_ERROR\n> "
+  echo -en "\e[H$JP_ERROR\n"
 }
 
 JP_SOURCED=0
