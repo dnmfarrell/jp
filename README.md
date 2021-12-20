@@ -16,7 +16,7 @@ Options
     -m  load macros from a file (option can be given multiple times)
     -p  force pretty print output (default to tty)
     -P  force plain output (default to non-tty)
-    -r launch REPL
+    -r  launch REPL
     -s  silent, disable print step
 
 
