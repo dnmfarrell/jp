@@ -451,6 +451,8 @@ TOS     (empty)
 
 This interactive mode reads commands, evaluates them, updates the stack and prints the stack contents. Multiple commands can be entered on one line. This a good way to try out commands and see their effect on the stack.
 
+REPL history is stored in `.jp_history`. As with the bash command line, Ctrl-R searches the history and the up key displays the next most recent command. Commands that generated an error are not saved in the history. 
+
 
 Use jp as a library
 -------------------

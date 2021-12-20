@@ -1103,13 +1103,14 @@ jp_main () {
 }
 
 jp_repl () {
+  history -r .jp_history
   local msg="Welcome to the jp REPL. Type commands and ENTER to evaluate, q quits."
   JP_ERROR="$msg"
   jp_redraw
   while IFS= read -e -p '> ' -r;do
     if [ "$REPLY" = 'q' ];then
       echo -ne "\e[H\e[JGoodbye.\n"
-      return
+      break
     fi
     jp_macro_to_args "$REPLY" || return
     JP_ARGS_LEN=${#JP_ARGS[@]}
@@ -1118,9 +1119,11 @@ jp_repl () {
       jp_next_arg || break
       jp_eval "$JP_ARG" || break
     done
+    [ "${JP_ERROR:0:7}" = 'Welcome' ]&&history -s "$REPLY"
     jp_redraw
     JP_ERROR="$msg"
   done
+  history -w .jp_history
 }
 
 jp_redraw () {
