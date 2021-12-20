@@ -12,6 +12,8 @@ Options
 -------
 
     -d  launch transform debugger
+    -h  set repl history file (default is `.history`)
+    -H  do not load/save repl history
     -i  set indent value (default is two spaces)
     -m  load macros from a file (option can be given multiple times)
     -p  force pretty print output (default to tty)
@@ -451,7 +453,7 @@ TOS     (empty)
 
 This interactive mode reads commands, evaluates them, updates the stack and prints the stack contents. Multiple commands can be entered on one line. This a good way to try out commands and see their effect on the stack.
 
-REPL history is stored in `.jp_history`. As with the bash command line, Ctrl-R searches the history and the up key displays the next most recent command. Commands that generated an error are not saved in the history. 
+REPL history is stored in `.history`. As with the bash command line, Ctrl-R searches the history and the up key displays the next most recent command. Commands that generated an error are not saved in the history. The history file can be changed with the `-h` option, or disabled entirely with `-H`.
 
 
 Use jp as a library

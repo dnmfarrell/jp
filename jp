@@ -12,6 +12,7 @@ JP_TAB='	'
 IFS="$JP_TAB" # tokens are tab delimited
 JP_SEP=$'\t\n'
 JP_STACKSIZE=0
+JP_HISTORY=".history"
 
 jp_error () {
   JP_ERROR=${1/"'$JP_NL'"/"''"}
@@ -1071,9 +1072,11 @@ jp_main () {
   JP_INDENT="  "          # 2 space indent default
   [ -t 1 ] && JP_PRETTY=1 # default to pretty for a tty
   [ -t 0 ] || JP_INPUT=1  # read input if being piped
-  while getopts "dpPrsi:m:" opt;do
+  while getopts "dh:HpPrsi:m:" opt;do
     case "$opt" in
       'd') JP_DEBUG=1;;
+      'h') JP_HISTORY="$OPTARG";;
+      'H') JP_HISTORY=;;
       'p') JP_PRETTY=1;;
       'P') JP_PRETTY=;;
       'i') JP_INDENT="$OPTARG";;
@@ -1082,6 +1085,7 @@ jp_main () {
       'm') jp_load_macros "$OPTARG"
     esac
   done
+  echo "$JP_HISTORY"
   shift $((OPTIND-1)) # reset options processing
   if [ $JP_REPL ];then
     jp_repl
@@ -1103,7 +1107,7 @@ jp_main () {
 }
 
 jp_repl () {
-  history -r .jp_history
+  history -r "$JP_HISTORY"
   local msg="Welcome to the jp REPL. Type commands and ENTER to evaluate, q quits."
   JP_ERROR="$msg"
   jp_redraw
@@ -1123,7 +1127,7 @@ jp_repl () {
     jp_redraw
     JP_ERROR="$msg"
   done
-  history -w .jp_history
+  history -w "$JP_HISTORY"
 }
 
 jp_redraw () {
