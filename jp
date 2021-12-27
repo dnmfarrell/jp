@@ -1085,7 +1085,6 @@ jp_main () {
       'm') jp_load_macros "$OPTARG"
     esac
   done
-  echo "$JP_HISTORY"
   shift $((OPTIND-1)) # reset options processing
   if [ $JP_REPL ];then
     jp_repl
