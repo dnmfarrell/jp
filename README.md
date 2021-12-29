@@ -631,7 +631,7 @@ An upsert operation is yet another way to modify data: if the key exists, update
 ### Programming
 So far all of these conditional operations (filter, delete, update, upsert) are key based. That means the input string needs to exactly match the tuple key to take effect. What if I want to take some action based on a tuple _value_ instead? Now I can't use a predefined macro, I have to program the transformation myself.
 
-For this scenario, imagine I am streaming GitHub user profiles to jp, and want to filter my profile out of the stream. To simulate the stream, I downloaded another GitHub profile.
+For this scenario, imagine I am streaming GitHub user profiles to jp, and want to filter my profile out of the stream.
 
 First I need to extract the login tuple:
 
