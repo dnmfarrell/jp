@@ -8,7 +8,7 @@ A JSON processor: it takes a stream of JSON text, parses it onto a stack, option
     2
     1
 
-To get productive with jp quickly, try out the [tutorial](#tutorial).
+To get productive with jp quickly, try out the [tutorial](#tutorial). If you are trying to use jp and struggling, try [tech-support](#tech-support).
 
 Options
 -------
@@ -513,11 +513,14 @@ These parse a JSON stream of text, and output a linear tree of paths which can b
 
 [TickTick](https://github.com/kristopolous/TickTick) is a Bash library which provides inline JSON parsing and searching.
 
+Tech Support
+------------
+If you are trying to use jp and running into difficulty, I want to hear from you! Please open a new [issue](https://github.com/dnmfarrell/jp/issues/new?labels=tech-support&title=%3CI%27m%20having%20difficulty%20with%20...%3E&body=%3CI%27ve%20tried%20...%3E%0A%0A%3Cattach%20sample%20JSON%20if%20any%3E). Include any JSON input data you are using, a brief description of what you are trying to accomplish, and what you've tried so far. I can't provide any service guarantees, but when I have time I'll look at your issue and try to provide a solution.
 
 Tutorial
 --------
 ### Intro
-This tutorial will show you how to accomplish simple transformations on JSON objects like update, filter and delete. You'll need to [install](#install) jp and start a bash shell session. I recommend typing out all of the code examples yourself to better understand (and remember) what's going on. If you have suggestions for how this tutorial could be better please let me know by opening a new [issue](https://github.com/dnmfarrell/jp/issues/new) and adding the label "tutorial".
+This tutorial will show you how to accomplish simple transformations on JSON objects like update, filter and delete. You'll need to [install](#install) jp and start a bash shell session. I recommend typing out all of the code examples yourself to better understand (and remember) what's going on. If you have suggestions for how this tutorial could be better please let me know by opening a new [issue](https://github.com/dnmfarrell/jp/issues/new?labels=tutorial).
 
 To demonstrate I need some input data, so I'm going to use a shortened version of my GitHub profile. If you have a GitHub account, you can download your own JSON profile with curl (replace `gh_username` with your github username):
 
