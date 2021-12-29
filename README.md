@@ -8,6 +8,8 @@ A JSON processor: it takes a stream of JSON text, parses it onto a stack, option
     2
     1
 
+To get productive with jp quickly, try out the [tutorial](#tutorial).
+
 Options
 -------
 
@@ -511,6 +513,162 @@ These parse a JSON stream of text, and output a linear tree of paths which can b
 
 [TickTick](https://github.com/kristopolous/TickTick) is a Bash library which provides inline JSON parsing and searching.
 
+
+Tutorial
+--------
+### Intro
+This tutorial will show you how to accomplish simple transformations on JSON objects like update, filter and delete. You'll need to [install](#install) jp and start a bash shell session. I recommend typing out all of the code examples yourself to better understand (and remember) what's going on. If you have suggestions for how this tutorial could be better please let me know by opening a new [issue](https://github.com/dnmfarrell/jp/issues/new) and adding the label "tutorial".
+
+To demonstrate I need some input data, so I'm going to use a shortened version of my GitHub profile. If you have a GitHub account, you can download your own JSON profile with curl (replace `gh_username` with your github username):
+
+    curl https://api.github.com/users/gh_username > gh-profile.json
+
+The first thing to get comfortable with is passing data into jp, which we can do using `cat` and pipe:
+
+    cat gh-profile.json | jp
+    {
+      "login": "dnmfarrell",
+      "id": 1469333,
+      "url": "https://api.github.com/users/dnmfarrell",
+      "type": "User",
+      "site_admin": false,
+      "name": "David Farrell",
+      "blog": "blog.dnmfarrell.com",
+      "location": "Buccaneer's Den, Britannia",
+      "twitter_username": "perltricks",
+      "public_repos": 147,
+      "created_at": "2012-02-24T11:56:06Z"
+    }
+
+N.B. Because jp's parent directory is in my PATH environment variable, I don't need to provide the shell with the full path to `jp`. If jp is not in your PATH, you'll need to provide the path to jp. For example, if you cloned this repo and are currently in the root project dir, `./jp` is the relative path to the program.
+
+All jp does is print the content back onto the terminal. What is the use in that? For one thing the fact that jp did not report an error means I know this JSON is syntactically correct. If that's all I care about though, I can give jp the silent option `-s`:
+
+    cat gh-profile.json | jp -s
+
+Now imagine I want to collapse the JSON into a single line of text, to make it easy to use as input for an API request. The  plain print `-P` does that:
+
+    cat gh-profile.json | jp -P
+    {"login":"dnmfarrell", ...}
+
+(I've truncated the output for brevity, from now on whenever you see the ellipsis `...` just imagine it represents the rest of the data).
+
+That just about covers parsing input and printing output. The real action happens between parsing and printing. That's called the transform stage.
+
+### Filter
+Let's filter my profile to extract my twitter username:
+
+    cat gh-profile.json | jp -m macros.jp '"twitter_username"' .filterobj
+    {
+      "twitter_username": "perltricks"
+    }
+
+I've used a new option `-m` to load the macros helper file as that's where `.filterobj` is defined.
+
+Next I pass the JSON string `"twitter_username"` as an argument, which jp stores on its internal stack. Finally the `.filterobj` macro uses the two stack values (the string, and the object of my GitHub profile) to inspect each tuple in the object, and if the tuple's key matches `"twitter_username"` it will keep it, else `.filterobj` deletes the key/value pair.
+
+However all I wanted was my twitter username, I don't care about the curly braces or key string. To pluck the value out of the tuple, I can use `.v`:
+
+    cat gh-profile.json | jp -m macros.jp '"twitter_username"' .filterobj .v
+    "perltricks"
+
+Note that the string `"perltricks"` is valid JSON. jp always prints JSON (or error messages).
+
+### Delete
+I can delete tuples from objects using the `.deleteobj` macro; e.g. to delete the twitter username tuple:
+
+    cat gh-profile.json | jp -m macros.jp '"twitter_username"' .deleteobj
+    {
+      "login": "dnmfarrell",
+      "id": 1469333,
+      "url": "https://api.github.com/users/dnmfarrell",
+      "type": "User",
+      "site_admin": false,
+      "name": "David Farrell",
+      "blog": "blog.dnmfarrell.com",
+      "location": "Buccaneer's Den, Britannia",
+      "public_repos": 147,
+      "created_at": "2012-02-24T11:56:06Z"
+    }
+
+### Add
+Here's how to add data to an object:
+
+    cat gh-profile.json | jp  '{"favorite_food":"pizza"}' .concat
+    {
+      "favorite_food": "pizza",
+      "login": "dnmfarrell",
+      ...
+    }
+
+I pass the JSON object I want to add and use `.concat` to combine them. My "favorite\_food" tuple has been prepended to the object. What if I want to _append_ it instead? In that case I need to swap the stack order so `.concat` gets the "favorite\_food" object as its second arg:
+
+    cat gh-profile.json | jp  '{"favorite_food":"pizza"}' .swap .concat
+    {
+      "login": "dnmfarrell",
+      ...
+      "favorite_food": "pizza"
+    }
+
+### Update / Upsert
+Perhaps I want to hide my location before sending the data elsewhere:
+
+    cat gh-profile.json | jp  -m macros.jp '{"location":null}' .updateobj
+    {
+      "login": "dnmfarrell",
+      ...
+      "location": null,
+      ...
+    }
+
+I've used the `.updateobj` macro to nullify the location value. The difference between update and add is that update will only take effect if the key "location" exists, whereas add will always add data to the object.
+
+An upsert operation is yet another way to modify data: if the key exists, update it, otherwise insert the data. The `.upsertobj` macro does this.
+
+### Programming
+So far all of these conditional operations (filter, delete, update, upsert) are key based. That means the input string needs to exactly match the tuple key to take effect. What if I want to take some action based on a tuple _value_ instead? Now I can't use a predefined macro, I have to program the transformation myself.
+
+For this scenario, imagine I am streaming GitHub user profiles to jp, and want to filter my profile out of the stream. To simulate the stream, I downloaded another GitHub profile.
+
+First I need to extract the login tuple:
+
+    cat gh-profile.json | jp -m macros.jp .dup '"login"' .filterobj
+    {
+      "login": "dnmfarrell"
+    }
+    {
+      "login": "dnmfarrell",
+      ...
+    }
+
+To avoid losing the input object, I duplicate it first, with `.dup`. Then I use the `.filterobj` macro to extract the login tuple. jp now prints the stack containing the two objects. I find it easier to inspect the stack using plain output:
+
+    cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj
+    {"login":"dnmfarrell"}
+    {"login":"dnmfarrell", ...}
+
+Now each line is one stack entry, I can easily count that there are 2 objects on the stack. Next I need to test whether the username is my own:
+
+    cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj .v '"dnmfarrell"' .eq
+    true
+    {"login":"dnmfarrell", ...}
+
+Now the top stack value is a boolean, I can use `.if` to take some optional action:
+
+    cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj .v '"dnmfarrell"' .eq .if .pop
+
+Because `.if` consumes the boolean, only the object is left on the stack. If it matches my username, I pop it off the stack. As the stack is empty, jp does not print anything.
+
+To simulate the stream, I downloaded the GitHub profile of Beren Minor, who (among other things) mirrors GNU repos like bash to GitHub:
+
+    curl https://api.github.com/users/bminor > gh-profile-bminor.json
+
+Bash expands the argument `gh-profile*` into `gh-profile-bminor.json gh-profile.json`:
+
+    cat gh-profile* | jp -P -m macros.jp .dup '"login"' .filterobj .v '"dnmfarrell"' .eq .if .pop
+    {"login":"bminor", ...}
+
+jp correctly filters my profile but still emits Beren's.
 
 License
 -------

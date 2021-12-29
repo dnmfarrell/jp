@@ -11,3 +11,7 @@
 .def .ht .do .dup .t .swap .h .done
 .def .sort .do .dup .len 1 .gt .if .do .dup .dup .ht .dup [] .swap .cons .rot .rot .gtarr .sort .swap .concat .swap .ht .eqarr .concat .swap .ht .ltarr .sort .concat .done .done
 .def .ab .do .over .over .gt .if .swap .pop .done
+.def .updateobj .do {} .swap .rot .map .do .over .k .over .k .eq .if .do .pop .dup .done .rot .concat .swap .done .pop .done
+.def .upsertobj .do .concat .uniq .done
+.def .deleteobj .do {} .swap .rot .map .do .over .over .k .eq .if .pop .else .do .rot .concat .swap .done .done .pop .done
+.def .filterobj .do {} .swap .rot .map .do .over .over .k .ne .if .pop .else .do .rot .concat .swap .done .done .pop .done
