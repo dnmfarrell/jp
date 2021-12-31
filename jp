@@ -871,7 +871,7 @@ jp_def () {
     done
   fi
   type -t $name &>/dev/null && return # don't redefine functions
-  eval $"$name () { JP_ARGS_LEN=\$((JP_ARGS_LEN+$argc-1));((JP_ARGS_IDX--));JP_ARGS=(\${JP_ARGS[@]:0:\$JP_ARGS_IDX} $args \${JP_ARGS[@]:\$((JP_ARGS_IDX+1))}); }"
+  eval $"$name () { JP_ARGS_LEN=\$((JP_ARGS_LEN+$argc-1));((JP_ARGS_IDX--));JP_ARGS=(\${JP_ARGS[@]:0:\$JP_ARGS_IDX} $args \${JP_ARGS[@]:\$((JP_ARGS_IDX+1))}); jp_next_arg || return;jp_eval \"\$JP_ARG\" || return; }"
 }
 
 jp_q () {
