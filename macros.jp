@@ -4,6 +4,7 @@
 .def .or .do .if .do .pop true .done .else .do .if true .else false .done .done
 .def .revarr .do [] .swap .map .cons .done
 .def .revobj .do {} .swap .map .concat .done
+.def .rev .do .is_obj .if .revobj .else .revarr .done
 .def .empty .do .count 0 .eq .done
 .def .ltarr .do [] .rot .rot .swap .map .do .over .over .swap .lt .if .do .rot .swap .cons .swap .done .else .pop .done .pop .revarr .done
 .def .gtarr .do [] .rot .rot .swap .map .do .over .over .swap .gt .if .do .rot .swap .cons .swap .done .else .pop .done .pop .revarr .done
