@@ -1012,6 +1012,7 @@ jp_run () {
     set -T
   fi
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
+  JP_LINE=1
   while (( JP_ARGS_IDX < JP_ARGS_LEN ));do
     jp_next_arg || return
     jp_eval "$JP_ARG" || return
@@ -1033,12 +1034,14 @@ jp_run () {
 jp_load_macros () {
   [ -f "$1" ] || jp_error "cannot find macro file: $1" || return
   [ -r "$1" ] || jp_error "cannot open macro file for reading: $1" || return
+  JP_LINE=1
   while IFS= read -r;do
     jp_macro_to_args "$REPLY" || return
     JP_ARGS_LEN=${#JP_ARGS[@]}
     JP_ARGS_IDX=0
     jp_next_arg || return
     jp_eval "$JP_ARG" || return
+    (( JP_LINE++ ))
   done < "$1"
 }
 
@@ -1082,7 +1085,7 @@ jp_main () {
       'i') JP_INDENT="$OPTARG";;
       'r') JP_REPL=1;;
       's') JP_SILENT=1;;
-      'm') jp_load_macros "$OPTARG"
+      'm') jp_load_macros "$OPTARG" || return
     esac
   done
   shift $((OPTIND-1)) # reset options processing
