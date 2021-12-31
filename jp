@@ -1138,8 +1138,6 @@ jp_redraw () {
   echo -en "\e[H$JP_ERROR\n"
 }
 
-JP_SOURCED=0
-[ $0 != "$BASH_SOURCE" ] && JP_SOURCED=1
-[ $JP_SOURCED -eq 0 ] && jp_main "$@"
+[ "$0" = "$BASH_SOURCE" ] && jp_main "$@"
 # END MAIN
 # vim: set ft=sh:
