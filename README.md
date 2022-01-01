@@ -269,6 +269,12 @@ This macro splits a TOS array into its head and tail:
     1
     [2,3]
 
+#### .idx
+Pops an integer and an array off the stack, pushing the element from the array which matches the index number. Index number must be 0 or higher. Pushes nothing if the index number is greater than the array length.
+
+  jp '["foo","bar","baz"]' 1 .idx
+  "bar"
+
 #### .k
 Pops an object off the stack, pushing the first key back on the stack. See also `.v`.
 

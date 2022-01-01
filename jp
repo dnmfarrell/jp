@@ -909,6 +909,31 @@ jp_pair () {
   jp_pop || return
   jp_push "{	$k	:	$JP_OUT	}	"
 }
+
+jp_idx () {
+  if jp__is_int;then
+    jp_pop || return
+    if jp__is_arr;then
+      [ $JP_OUT -ge 0 ] || jp_error "idx must be positive" || return
+      local i=$JP_OUT j=0
+      jp_pop || return
+      if [ "${#JP_OUT}" -gt 3 ];then
+        local nestcnt=0 accum
+        for t in ${JP_OUT:2:-2};do
+          [ $nestcnt -eq 0 ]&&[ "$t" = ',' ]&& continue
+          [ "$i" -eq "$j" ] && accum+="$t	"
+          [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+          [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+          [ $nestcnt -eq 0 ]&&(( j++ ))
+          (( j > i )) && break
+        done
+        [ -n "$accum" ] && jp_push "$accum	"
+      fi
+      return
+    fi
+  fi
+  jp_error "idx requires an int and an array" || return
+}
 # END TRANSFORM FUNCTIONS
 
 # BEGIN PRINT FUNCTIONS
