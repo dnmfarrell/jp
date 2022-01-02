@@ -281,6 +281,12 @@ Pops an object off the stack, pushing the first key back on the stack. See also 
     jp '{"a":1,"b":2}' .k
     "a"
 
+#### .keyval
+Pops a string and an object off the stack, pushing the value of the first tuple with a matching key in the object.
+
+    jp '{"a":1,"b":2}' '"b"' .keyval
+    2
+
 #### .len
 Pops an array and pushes its length:
 

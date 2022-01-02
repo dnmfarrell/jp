@@ -573,7 +573,7 @@ jp__test () {
   if jp__is_str;then
     jp_pop || return
     right="$JP_OUT"
-    if [ -z $str_op ];then
+    if [ -z "$str_op" ];then
       jp_error "$op_name does not work on strings" || return
     elif jp__is_str;then
       jp_pop || return
@@ -927,12 +927,46 @@ jp_idx () {
           [ $nestcnt -eq 0 ]&&(( j++ ))
           (( j > i )) && break
         done
-        [ -n "$accum" ] && jp_push "$accum	"
+        [ -n "$accum" ] && jp_push "$accum"
       fi
       return
     fi
   fi
   jp_error "idx requires an int and an array" || return
+}
+
+jp_keyval () {
+  if jp__is_str;then
+    jp_pop || return
+    if jp__is_obj;then
+      local k="$JP_OUT"
+      jp_pop || return
+      if [ "${#JP_OUT}" -gt 3 ];then
+        local obj="$JP_OUT" flipflop=0 nestcnt=0 accum match
+        for t in ${obj:2:-2};do
+          if [ $flipflop -eq 0 ];then # key
+            [ "$k" = "$t" ] && match=1
+            flipflop=$(( flipflop + 1 ))
+          elif [ $flipflop -eq 1 ];then # :
+            flipflop=$(( flipflop + 1 ))
+          elif [ $flipflop -eq 2 ];then # val
+            [ -n "$match" ] && accum+="$t	"
+            [[ $t == [\[{] ]] && nestcnt=$(( nestcnt + 1 ))
+            [[ $t == [\]}] ]] && nestcnt=$(( nestcnt - 1 ))
+            if [ $nestcnt -eq 0 ];then
+              flipflop=$(( flipflop + 1 ))
+              [ -n "$match" ] && break
+            fi
+          else # ,
+            flipflop=0
+          fi
+        done
+        [ -n "$match" ] && jp_push "$accum"
+      fi
+      return
+    fi
+  fi
+  jp_error "keyval requires a string and an object" || return
 }
 # END TRANSFORM FUNCTIONS
 
