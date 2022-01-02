@@ -282,7 +282,7 @@ Pops an object off the stack, pushing the first key back on the stack. See also 
     "a"
 
 #### .keyval
-Pops a string and an object off the stack, pushing the value of the first tuple with a matching key in the object.
+Pops a string and an object off the stack, pushing the value of the first pair with a matching key in the object.
 
     jp '{"a":1,"b":2}' '"b"' .keyval
     2
@@ -294,7 +294,7 @@ Pops an array and pushes its length:
     3
 
 #### .pair
-Pops TOS, which must be a string. Pops the next item as its value and pushes an object with a single key/value pair back onto the stack.
+Pops TOS, which must be a string. Pops the next item as its value and pushes an object with a single pair back onto the stack.
 
     jp 123 '"a"' .pair
     {
@@ -580,9 +580,9 @@ Let's filter my profile to extract my twitter username:
 
 I've used a new option `-m` to load the macros helper file as that's where `.filterobj` is defined.
 
-Next I pass the JSON string `"twitter_username"` as an argument, which jp stores on its internal stack. Finally the `.filterobj` macro uses the two stack values (the string, and the object of my GitHub profile) to inspect each tuple in the object, and if the tuple's key matches `"twitter_username"` it will keep it, else `.filterobj` deletes the key/value pair.
+Next I pass the JSON string `"twitter_username"` as an argument, which jp stores on its internal stack. Finally the `.filterobj` macro uses the two stack values (the string, and the object of my GitHub profile) to inspect each pair in the object, and if the pair's key matches `"twitter_username"` it will keep it, else `.filterobj` deletes the pair.
 
-However all I wanted was my twitter username, I don't care about the curly braces or key string. To pluck the value out of the tuple, I can use `.v`:
+However all I wanted was my twitter username, I don't care about the curly braces or key string. To pluck the value out of the pair, I can use `.v`:
 
     cat gh-profile.json | jp -m macros.jp '"twitter_username"' .filterobj .v
     "perltricks"
@@ -590,7 +590,7 @@ However all I wanted was my twitter username, I don't care about the curly brace
 Note that the string `"perltricks"` is valid JSON. jp always prints JSON (or error messages).
 
 ### Delete
-I can delete tuples from objects using the `.deleteobj` macro; e.g. to delete the twitter username tuple:
+I can delete pairs from objects using the `.deleteobj` macro; e.g. to delete the twitter username pair:
 
     cat gh-profile.json | jp -m macros.jp '"twitter_username"' .deleteobj
     {
@@ -616,7 +616,7 @@ Here's how to add data to an object:
       ...
     }
 
-I pass the JSON object I want to add and use `.concat` to combine them. My "favorite\_food" tuple has been prepended to the object. What if I want to _append_ it instead? In that case I need to swap the stack order so `.concat` gets the "favorite\_food" object as its second arg:
+I pass the JSON object I want to add and use `.concat` to combine them. My "favorite\_food" pair has been prepended to the object. What if I want to _append_ it instead? In that case I need to swap the stack order so `.concat` gets the "favorite\_food" object as its second arg:
 
     cat gh-profile.json | jp  '{"favorite_food":"pizza"}' .swap .concat
     {
@@ -641,11 +641,11 @@ I've used the `.updateobj` macro to nullify the location value. The difference b
 An upsert operation is yet another way to modify data: if the key exists, update it, otherwise insert the data. The `.upsertobj` macro does this.
 
 ### Programming
-So far all of these conditional operations (filter, delete, update, upsert) are key based. That means the input string needs to exactly match the tuple key to take effect. What if I want to take some action based on a tuple _value_ instead? Now I can't use a predefined macro, I have to program the transformation myself.
+So far all of these conditional operations (filter, delete, update, upsert) are key based. That means the input string needs to exactly match the pair key to take effect. What if I want to take some action based on a pair _value_ instead? Now I can't use a predefined macro, I have to program the transformation myself.
 
 For this scenario, imagine I am streaming GitHub user profiles to jp, and want to filter my profile out of the stream.
 
-First I need to extract the login tuple:
+First I need to extract the login pair:
 
     cat gh-profile.json | jp -m macros.jp .dup '"login"' .filterobj
     {
@@ -656,7 +656,7 @@ First I need to extract the login tuple:
       ...
     }
 
-To avoid losing the input object, I duplicate it first, with `.dup`. Then I use the `.filterobj` macro to extract the login tuple. jp now prints the stack containing the two objects. I find it easier to inspect the stack using plain output:
+To avoid losing the input object, I duplicate it first, with `.dup`. Then I use the `.filterobj` macro to extract the login pair. jp now prints the stack containing the two objects. I find it easier to inspect the stack using plain output:
 
     cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj
     {"login":"dnmfarrell"}
