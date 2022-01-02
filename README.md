@@ -532,7 +532,7 @@ If you are trying to use jp and running into difficulty, I want to hear from you
 Tutorial
 --------
 ### Intro
-This tutorial will show you how to accomplish simple transformations on JSON objects like update, filter and delete. You'll need to [install](#install) jp and start a bash shell session. I recommend typing out all of the code examples yourself to better understand (and remember) what's going on. If you have suggestions for how this tutorial could be better please let me know by opening a new [issue](https://github.com/dnmfarrell/jp/issues/new?labels=tutorial).
+This tutorial will show you how to accomplish simple transformations on JSON objects like add, update, and delete. You'll need to [install](#install) jp and start a bash shell session. I recommend typing out all of the code examples yourself to better understand (and remember) what's going on. If you have suggestions for how this tutorial could be better please let me know by opening a new [issue](https://github.com/dnmfarrell/jp/issues/new?labels=tutorial).
 
 To demonstrate I need some input data, so I'm going to use a shortened version of my GitHub profile. If you have a GitHub account, you can download your own JSON profile with curl (replace `gh_username` with your github username):
 
@@ -570,21 +570,10 @@ Now imagine I want to collapse the JSON into a single line of text, to make it e
 
 That just about covers parsing input and printing output. The real action happens between parsing and printing. That's called the transform stage.
 
-### Filter
-Let's filter my profile to extract my twitter username:
+### Extract
+Let's extract my twitter username:
 
-    cat gh-profile.json | jp -m macros.jp '"twitter_username"' .filterobj
-    {
-      "twitter_username": "perltricks"
-    }
-
-I've used a new option `-m` to load the macros helper file as that's where `.filterobj` is defined.
-
-Next I pass the JSON string `"twitter_username"` as an argument, which jp stores on its internal stack. Finally the `.filterobj` macro uses the two stack values (the string, and the object of my GitHub profile) to inspect each pair in the object, and if the pair's key matches `"twitter_username"` it will keep it, else `.filterobj` deletes the pair.
-
-However all I wanted was my twitter username, I don't care about the curly braces or key string. To pluck the value out of the pair, I can use `.v`:
-
-    cat gh-profile.json | jp -m macros.jp '"twitter_username"' .filterobj .v
+    cat gh-profile.json | jp '"twitter_username"' .keyval
     "perltricks"
 
 Note that the string `"perltricks"` is valid JSON. jp always prints JSON (or error messages).
@@ -605,6 +594,8 @@ I can delete pairs from objects using the `.deleteobj` macro; e.g. to delete the
       "public_repos": 147,
       "created_at": "2012-02-24T11:56:06Z"
     }
+
+I've used a new option `-m` to load the macros helper file as that's where `.deleteobj` is defined.
 
 ### Add
 Here's how to add data to an object:
@@ -641,36 +632,34 @@ I've used the `.updateobj` macro to nullify the location value. The difference b
 An upsert operation is yet another way to modify data: if the key exists, update it, otherwise insert the data. The `.upsertobj` macro does this.
 
 ### Programming
-So far all of these conditional operations (filter, delete, update, upsert) are key based. That means the input string needs to exactly match the pair key to take effect. What if I want to take some action based on a pair _value_ instead? Now I can't use a predefined macro, I have to program the transformation myself.
+So far all of these conditional operations are key based. That means the input string needs to exactly match the pair key to take effect. What if I want to take some action based on a pair _value_ instead? Now I can't use a predefined macro, I have to program the transformation myself.
 
 For this scenario, imagine I am streaming GitHub user profiles to jp, and want to filter my profile out of the stream.
 
 First I need to extract the login pair:
 
-    cat gh-profile.json | jp -m macros.jp .dup '"login"' .filterobj
-    {
-      "login": "dnmfarrell"
-    }
+    cat gh-profile.json | jp .dup '"login"' .keyval
+    "dnmfarrell"
     {
       "login": "dnmfarrell",
       ...
     }
 
-To avoid losing the input object, I duplicate it first, with `.dup`. Then I use the `.filterobj` macro to extract the login pair. jp now prints the stack containing the two objects. I find it easier to inspect the stack using plain output:
+To avoid losing the input object, I duplicate it first, with `.dup`. Then I use the `.keyval` to extract the login pair value. jp then prints the stack containing the string and the object. I find it easier to inspect the stack using plain output:
 
-    cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj
-    {"login":"dnmfarrell"}
+    cat gh-profile.json | jp -P .dup '"login"' .keyval
+    "dnmfarrell"
     {"login":"dnmfarrell", ...}
 
-Now each line is one stack entry, I can easily count that there are 2 objects on the stack. Next I need to test whether the username is my own:
+Now each line is one stack entry, I can easily count that there are 2 entries on the stack. Next I need to test whether the username is my own:
 
-    cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj .v '"dnmfarrell"' .eq
+    cat gh-profile.json | jp -P .dup '"login"' .keyval '"dnmfarrell"' .eq
     true
     {"login":"dnmfarrell", ...}
 
 Now the top stack value is a boolean, I can use `.if` to take some optional action:
 
-    cat gh-profile.json | jp -P -m macros.jp .dup '"login"' .filterobj .v '"dnmfarrell"' .eq .if .pop
+    cat gh-profile.json | jp -P .dup '"login"' .keyval '"dnmfarrell"' .eq .if .pop
 
 Because `.if` consumes the boolean, only the object is left on the stack. If it matches my username, I pop it off the stack. As the stack is empty, jp does not print anything.
 
@@ -680,8 +669,8 @@ To simulate the stream, I downloaded the GitHub profile of Beren Minor, who (amo
 
 Bash expands the argument `gh-profile*` into `gh-profile-bminor.json gh-profile.json`:
 
-    cat gh-profile* | jp -P -m macros.jp .dup '"login"' .filterobj .v '"dnmfarrell"' .eq .if .pop
-    {"login":"bminor", ...}
+    cat gh-profile* | jp -P .dup '"login"' .keyval '"dnmfarrell"' .eq .if .pop
+    {"login":"bminor",   ...}
 
 jp correctly filters my profile but still emits Beren's.
 
