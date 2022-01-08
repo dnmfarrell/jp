@@ -1067,7 +1067,7 @@ jp_run () {
   # transform
   if [ $JP_DEBUG ];then
     echo -e "DEBUG: \033[1ms\033[0m:step, \033[1mn\033[0m:next arg, \033[1mq\033[0m:quit"
-    trap 'jp_debug "$BASH_COMMAND"' DEBUG
+    trap 'jp_debug "${BASH_COMMAND%% *}"' DEBUG
     set -T
   fi
   local in_idx="$JP_IDX" in_line="$JP_LINE" # save stdin parse state
