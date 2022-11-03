@@ -344,7 +344,7 @@ jp_pop () {
   if [ $JP_STACKSIZE -eq 0 ];then
     jp_error "cannot pop an empty stack" || return
   elif [ $JP_STACKSIZE -eq 1 ];then
-    JP_OUT="${JP_STACK:0:-2}"
+    JP_OUT="${JP_STACK:0:${#JP_STACK}-2}"
     JP_STACK=
   else
     JP_OUT="${JP_STACK%%$JP_SEP*}"
